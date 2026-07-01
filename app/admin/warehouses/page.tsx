@@ -13,6 +13,8 @@ import {
   AlertCircle,
   CheckCircle,
 } from 'lucide-react';
+import { API_URL } from '@/lib/api';
+
 
 interface Warehouse {
   _id: string;
@@ -58,7 +60,7 @@ export default function AdminWarehousesPage() {
 
   const fetchWarehouses = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/warehouses?limit=100', {
+      const res = await fetch('${API_URL}/warehouses?limit=100', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -101,7 +103,7 @@ export default function AdminWarehousesPage() {
         },
       };
 
-      const res = await fetch('http://localhost:5000/api/warehouses', {
+      const res = await fetch('${API_URL}/warehouses', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

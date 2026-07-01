@@ -13,6 +13,8 @@ import {
   Search,
   X,
 } from 'lucide-react';
+import { API_URL } from '@/lib/api';
+
 
 interface Listing {
   _id: string;
@@ -62,7 +64,7 @@ export default function WarehouseQueuePage() {
   const fetchListings = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/listings/warehouse/awaiting', {
+      const res = await fetch('${API_URL}/listings/warehouse/awaiting', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -79,7 +81,7 @@ export default function WarehouseQueuePage() {
     setActionLoading(true);
     setError('');
     try {
-      const res = await fetch(`http://localhost:5000/api/listings/${selectedListing._id}/receive`, {
+      const res = await fetch(`${API_URL}/listings/${selectedListing._id}/receive`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -125,7 +127,7 @@ export default function WarehouseQueuePage() {
         };
       }
 
-      const res = await fetch(`http://localhost:5000/api/listings/${selectedListing._id}/complete-qa`, {
+      const res = await fetch(`${API_URL}/listings/${selectedListing._id}/complete-qa`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),

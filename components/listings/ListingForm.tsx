@@ -16,6 +16,8 @@ import {
   User,
 } from 'lucide-react';
 import Link from 'next/link';
+import { API_URL } from '@/lib/api';
+
 
 interface ListingFormProps {
   userRole: string;
@@ -81,7 +83,7 @@ export default function ListingForm({ userRole, token, backUrl, successUrl, ware
 
   // Fetch categories from backend
 //   useEffect(() => {
-//     fetch('http://localhost:5000/api/commodity-types')
+//     fetch('${API_URL}/commodity-types')
 //       .then(res => res.json())
 //       .then(data => {
 //         if (data.success) {
@@ -95,7 +97,7 @@ export default function ListingForm({ userRole, token, backUrl, successUrl, ware
 
 
 useEffect(() => {
-  fetch('http://localhost:5000/api/commodity-types')
+  fetch('${API_URL}/commodity-types')
     .then(res => res.json())
     .then(data => {
       if (data.success && Array.isArray(data.data)) {
@@ -145,7 +147,7 @@ useEffect(() => {
         body.warehouseId = formData.warehouseId;
       }
 
-      const res = await fetch('http://localhost:5000/api/listings', {
+      const res = await fetch('${API_URL}/listings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),

@@ -16,6 +16,8 @@ import {
   Package,
   Eye,
 } from 'lucide-react';
+import { API_URL } from '@/lib/api';
+
 
 interface Listing {
   _id: string;
@@ -76,7 +78,7 @@ export default function AdminListingsPage() {
       if (statusFilter) params.append('status', statusFilter);
       if (sourceFilter) params.append('sourceType', sourceFilter);
 
-      const res = await fetch(`http://localhost:5000/api/listings/admin/all?${params.toString()}`, {
+      const res = await fetch(`${API_URL}/listings/admin/all?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();

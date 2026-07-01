@@ -18,6 +18,8 @@ import {
   Warehouse,
   CheckCircle,
 } from 'lucide-react';
+import { API_URL } from '@/lib/api';
+
 
 interface Commodity {
   _id: string;
@@ -46,7 +48,7 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     if (id) {
-      fetch(`http://localhost:5000/api/commodities/${id}`)
+      fetch(`${API_URL}/commodities/${id}`)
         .then(r => r.json())
         .then(d => {
           if (d.success) {

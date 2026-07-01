@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import StatCard from '@/components/admin/StatCard';
+import { API_URL } from '@/lib/api';
 
 interface ListingStats {
   pending: number;
@@ -42,7 +43,7 @@ export default function AdminDashboard() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/listings/admin/stats', {
+      const res = await fetch('${API_URL}/listings/admin/stats', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -54,7 +55,7 @@ export default function AdminDashboard() {
 
   const fetchRecentListings = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/listings/pending-review?limit=5', {
+      const res = await fetch('${API_URL}/listings/pending-review?limit=5', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -337,7 +338,7 @@ export default function AdminDashboard() {
 
 //   const fetchStats = async () => {
 //     try {
-//       const res = await fetch('http://localhost:5000/api/listings/admin/stats', {
+//       const res = await fetch('${API_URL}/listings/admin/stats', {
 //         headers: { Authorization: `Bearer ${token}` },
 //       });
 //       const data = await res.json();
@@ -349,7 +350,7 @@ export default function AdminDashboard() {
 
 //   const fetchRecentListings = async () => {
 //     try {
-//       const res = await fetch('http://localhost:5000/api/listings/pending-review?limit=5', {
+//       const res = await fetch('${API_URL}/listings/pending-review?limit=5', {
 //         headers: { Authorization: `Bearer ${token}` },
 //       });
 //       const data = await res.json();

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import ListingForm from '@/components/listings/ListingForm';
+import { API_URL } from '@/lib/api';
 
 export default function AdminNewListingPage() {
   const { user, token, isAdmin, loading } = useAuth();
@@ -18,7 +19,7 @@ export default function AdminNewListingPage() {
 
   useEffect(() => {
     if (token && isAdmin) {
-      fetch('http://localhost:5000/api/warehouses?status=active&limit=100', {
+      fetch('${API_URL}/warehouses?status=active&limit=100', {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then(res => res.json())

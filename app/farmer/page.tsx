@@ -10,6 +10,8 @@ import {
   Plus,
   ArrowRight,
 } from 'lucide-react';
+import { API_URL } from '@/lib/api';
+
 
 export default function FarmerDashboard() {
   const { token } = useAuth();
@@ -23,7 +25,7 @@ export default function FarmerDashboard() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/listings/my-listings?limit=5', {
+      const res = await fetch('${API_URL}/listings/my-listings?limit=5', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();

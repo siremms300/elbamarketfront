@@ -13,6 +13,8 @@ import {
   CheckCircle,
   AlertCircle,
 } from 'lucide-react';
+import { API_URL } from '@/lib/api';
+
 
 interface UserData {
   _id: string;
@@ -78,7 +80,7 @@ useEffect(() => {
 //       if (search) params.append('search', search);
 //       params.append('limit', '50');
 
-//       const res = await fetch(`http://localhost:5000/api/farmers?${params.toString()}`, {
+//       const res = await fetch(`${API_URL}/farmers?${params.toString()}`, {
 //         headers: { Authorization: `Bearer ${token}` },
 //       });
       
@@ -107,7 +109,7 @@ const fetchUsers = async () => {
     if (search) params.append('search', search);
     params.append('limit', '50');
 
-    const res = await fetch(`http://localhost:5000/api/users?${params.toString()}`, {
+    const res = await fetch(`${API_URL}/users?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
@@ -127,7 +129,7 @@ const fetchUsers = async () => {
 
   const fetchWarehouses = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/warehouses?limit=100', {
+      const res = await fetch('${API_URL}/warehouses?limit=100', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -141,7 +143,7 @@ const fetchUsers = async () => {
     if (!selectedUser || !selectedWarehouse) return;
     setActionLoading(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/users/${selectedUser._id}/assign-warehouse`, {
+      const res = await fetch(`${API_URL}/users/${selectedUser._id}/assign-warehouse`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

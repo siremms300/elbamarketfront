@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { RotateCcw } from 'lucide-react';
+import { API_URL } from '@/lib/api';
 
 const nigerianStates = [
   'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue', 'Borno',
@@ -32,7 +33,7 @@ export default function FilterPanel({ filters, updateFilter, onClearAll, isSideb
   const [selectedCategory, setSelectedCategory] = useState('');
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/commodity-types')
+    fetch('${API_URL}/commodity-types')
       .then(res => res.json())
       .then(data => {
         if (data.success) setCommodityTypes(data.data);

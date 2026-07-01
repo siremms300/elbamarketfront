@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Package } from 'lucide-react';
+import { API_URL } from '@/lib/api';
 
 export default function WarehouseInventoryPage() {
   const { token, user } = useAuth();
@@ -21,7 +22,7 @@ export default function WarehouseInventoryPage() {
 
       if (!warehouseId) {
         // Fallback: fetch first active warehouse
-        const whRes = await fetch('http://localhost:5000/api/warehouses?status=active&limit=1', {
+        const whRes = await fetch('${API_URL}/warehouses?status=active&limit=1', {
           headers: { Authorization: `Bearer ${token}` },
         });
         const whData = await whRes.json();
@@ -45,7 +46,7 @@ export default function WarehouseInventoryPage() {
 
   const fetchWarehouseInventory = async (warehouseId: string) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/warehouses/${warehouseId}/inventory`, {
+      const res = await fetch(`${API_URL}/warehouses/${warehouseId}/inventory`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { Plus, Package, Eye } from 'lucide-react';
+import { API_URL } from '@/lib/api';
 
 interface Listing {
   _id: string;
@@ -59,7 +60,7 @@ export default function WarehouseListingsPage() {
       params.append('limit', '50');
       if (statusFilter) params.append('status', statusFilter);
 
-      const res = await fetch(`http://localhost:5000/api/listings/my-listings?${params}`, {
+      const res = await fetch(`${API_URL}/listings/my-listings?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 

@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import SupplyTable from '@/components/market/SupplyTable';
+import { API_URL } from '@/lib/api';
 
 export default function MarketPage() {
   const [commodities, setCommodities] = useState([]);
@@ -58,7 +59,7 @@ const [filters, setFilters] = useState({
         if (value !== '' && value !== false) params.append(key, String(value));
       });
 
-      const res = await fetch(`http://localhost:5000/api/commodities?${params.toString()}`);
+      const res = await fetch(`${API_URL}/commodities?${params.toString()}`);
       const data = await res.json();
       if (data.success) {
         setCommodities(data.data);
@@ -73,7 +74,7 @@ const [filters, setFilters] = useState({
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/commodities/stats');
+      const res = await fetch('${API_URL}/commodities/stats');
       const data = await res.json();
       if (data.success) setStats(data.data);
     } catch (error) {
@@ -246,7 +247,7 @@ const clearAllFilters = () => {
 //         if (value !== '' && value !== false) params.append(key, String(value));
 //       });
 
-//       const res = await fetch(`http://localhost:5000/api/commodities?${params.toString()}`);
+//       const res = await fetch(`${API_URL}/commodities?${params.toString()}`);
 //       const data = await res.json();
 //       if (data.success) {
 //         setCommodities(data.data);
@@ -261,7 +262,7 @@ const clearAllFilters = () => {
 
 //   const fetchStats = async () => {
 //     try {
-//       const res = await fetch('http://localhost:5000/api/commodities/stats');
+//       const res = await fetch('${API_URL}/commodities/stats');
 //       const data = await res.json();
 //       if (data.success) setStats(data.data);
 //     } catch (error) {
@@ -426,7 +427,7 @@ const clearAllFilters = () => {
 //         if (value !== '' && value !== false) params.append(key, String(value));
 //       });
 
-//       const res = await fetch(`http://localhost:5000/api/commodities?${params.toString()}`);
+//       const res = await fetch(`${API_URL}/commodities?${params.toString()}`);
 //       const data = await res.json();
 //       if (data.success) {
 //         setCommodities(data.data);
@@ -441,7 +442,7 @@ const clearAllFilters = () => {
 
 //   const fetchStats = async () => {
 //     try {
-//       const res = await fetch('http://localhost:5000/api/commodities/stats');
+//       const res = await fetch('${API_URL}/commodities/stats');
 //       const data = await res.json();
 //       if (data.success) setStats(data.data);
 //     } catch (error) {
@@ -615,7 +616,7 @@ const clearAllFilters = () => {
 //         if (value) params.append(key, String(value));
 //       });
 
-//       const res = await fetch(`http://localhost:5000/api/commodities?${params.toString()}`);
+//       const res = await fetch(`${API_URL}/commodities?${params.toString()}`);
 //       const data = await res.json();
 //       if (data.success) {
 //         setCommodities(data.data);
@@ -630,7 +631,7 @@ const clearAllFilters = () => {
 
 //   const fetchStats = async () => {
 //     try {
-//       const res = await fetch('http://localhost:5000/api/commodities/stats');
+//       const res = await fetch('${API_URL}/commodities/stats');
 //       const data = await res.json();
 //       if (data.success) setStats(data.data);
 //     } catch (error) {

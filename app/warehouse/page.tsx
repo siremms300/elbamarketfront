@@ -11,6 +11,8 @@ import {
   ArrowRight,
   Plus,
 } from 'lucide-react';
+import { API_URL } from '@/lib/api';
+
 
 export default function WarehouseDashboard() {
   const { token } = useAuth();
@@ -27,7 +29,7 @@ export default function WarehouseDashboard() {
 
   const fetchQueue = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/listings/warehouse/awaiting', {
+      const res = await fetch('${API_URL}/listings/warehouse/awaiting', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -44,7 +46,7 @@ export default function WarehouseDashboard() {
 
   const fetchInventory = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/warehouses?status=active&limit=100', {
+      const res = await fetch('${API_URL}/warehouses?status=active&limit=100', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();

@@ -25,6 +25,9 @@ import {
   MessageSquare,
   ExternalLink,
 } from 'lucide-react';
+import { API_URL } from '@/lib/api';
+
+
 
 interface Listing {
   _id: string;
@@ -102,7 +105,7 @@ export default function AdminListingDetailPage() {
   const fetchListing = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/listings/${id}`, {
+      const res = await fetch(`${API_URL}/listings/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -121,7 +124,7 @@ export default function AdminListingDetailPage() {
 
   const fetchWarehouses = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/warehouses?status=active&limit=100', {
+      const res = await fetch('${API_URL}/warehouses?status=active&limit=100', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -135,7 +138,7 @@ export default function AdminListingDetailPage() {
     if (!selectedWarehouse) { setError('Please select a warehouse'); return; }
     setActionLoading(true); setError('');
     try {
-      const res = await fetch(`http://localhost:5000/api/listings/${id}/approve`, {
+      const res = await fetch(`${API_URL}/listings/${id}/approve`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ warehouseId: selectedWarehouse, notes: reviewNotes || 'Approved' }),
@@ -151,7 +154,7 @@ export default function AdminListingDetailPage() {
     if (!rejectionReason) { setError('Please provide a reason'); return; }
     setActionLoading(true); setError('');
     try {
-      const res = await fetch(`http://localhost:5000/api/listings/${id}/reject`, {
+      const res = await fetch(`${API_URL}/listings/${id}/reject`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ reason: rejectionReason }),
