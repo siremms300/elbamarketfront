@@ -1,0 +1,259 @@
+@import 'tailwindcss';
+
+@theme {
+  /* ============================================
+     ELBA MARKET BRAND COLORS
+     ============================================ */
+  --color-elba-primary: #072111;
+  --color-elba-primary-light: #0E3A1D;
+  --color-elba-secondary: #558B33;
+  --color-elba-secondary-light: #6FA844;
+  --color-elba-tertiary: #CD7309;
+  --color-elba-tertiary-light: #E8891F;
+  --color-elba-charcoal: #1A1A1A;
+  --color-elba-surface: #F5F5F0;
+  --color-elba-surface-dark: #E8E8E0;
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    background-color: white;
+    color: var(--color-elba-charcoal);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--color-elba-surface);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-elba-secondary);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-elba-secondary-light);
+  }
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--color-elba-surface-dark);
+    border-radius: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #c0c0b8;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.4s ease-out forwards;
+  }
+
+  .animate-slide-right {
+    animation: slide-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-slide-down {
+    animation: slide-down 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
+
+/* ============================================
+   COMPONENT CLASSES
+   ============================================ */
+@layer components {
+  /* Supply Table Row */
+  .supply-row {
+    border-bottom: 1px solid var(--color-elba-surface-dark);
+    transition: background-color 0.15s ease;
+    cursor: pointer;
+  }
+
+  .supply-row:hover {
+    background-color: var(--color-elba-surface);
+  }
+
+  .supply-row-expanded {
+    background-color: var(--color-elba-surface);
+    border-bottom: 1px solid var(--color-elba-surface-dark);
+  }
+
+  /* Grade Badges */
+  .grade-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 4px;
+  }
+
+  .grade-a {
+    background-color: #dcfce7;
+    color: #166534;
+  }
+
+  .grade-b {
+    background-color: #fef3c7;
+    color: #92400e;
+  }
+
+  .grade-c {
+    background-color: #f3f4f6;
+    color: #6b7280;
+  }
+
+  /* Verification Badges */
+  .verified-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--color-elba-secondary);
+    font-weight: 500;
+  }
+
+  .trusted-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--color-elba-tertiary);
+    font-weight: 500;
+  }
+
+  /* Supply Progress Bar */
+  .supply-progress {
+    height: 6px;
+    border-radius: 9999px;
+    background-color: var(--color-elba-surface-dark);
+    overflow: hidden;
+  }
+
+  .supply-progress-fill {
+    height: 100%;
+    border-radius: 9999px;
+    transition: width 0.5s ease;
+  }
+
+  /* Elba Buttons */
+  .btn-elba-primary {
+    background-color: var(--color-elba-primary);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+    border: none;
+    cursor: pointer;
+  }
+
+  .btn-elba-primary:hover {
+    background-color: var(--color-elba-primary-light);
+  }
+
+  .btn-elba-primary:active {
+    transform: scale(0.98);
+  }
+
+  .btn-elba-secondary {
+    border: 1px solid var(--color-elba-secondary);
+    color: var(--color-elba-secondary);
+    background: transparent;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+
+  .btn-elba-secondary:hover {
+    background-color: var(--color-elba-secondary);
+    color: white;
+  }
+
+  .btn-elba-tertiary {
+    background-color: var(--color-elba-tertiary);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+    border: none;
+    cursor: pointer;
+  }
+
+  .btn-elba-tertiary:hover {
+    background-color: var(--color-elba-tertiary-light);
+  }
+
+  /* Skeleton loader */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--color-elba-surface) 0%,
+      var(--color-elba-surface-dark) 50%,
+      var(--color-elba-surface) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+    border-radius: 8px;
+  }
+
+  /* Number ticker */
+  .number-ticker {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ============================================
+   KEYFRAMES
+   ============================================ */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-right {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
