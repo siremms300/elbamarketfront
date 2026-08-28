@@ -100,7 +100,7 @@ export default function Hero() {
             </div>
             <div className="flex items-center gap-2">
               <Factory className="w-5 h-5 text-elba-secondary-light" />
-              <span>Built for processors & exporters</span>
+              <span>Built for households, processors & exporters</span>
             </div>
           </div>
 

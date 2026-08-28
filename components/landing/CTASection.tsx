@@ -11,10 +11,10 @@ export default function CTASection() {
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight">
-          Ready to Source at Scale?
+          Ready to Source?
         </h2>
         <p className="mt-4 text-lg lg:text-xl text-white/50 max-w-xl mx-auto leading-relaxed">
-          Join processors, manufacturers, and exporters who rely on Elba Market to deliver verified commodities on time, every time.
+          Join households, processors, manufacturers, and exporters who rely on Elba Market to deliver verified commodities on time, every time.
         </p>
 
         {/* Trust mini badges */}
