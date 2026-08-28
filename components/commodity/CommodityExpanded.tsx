@@ -1,3 +1,4 @@
+// client/components/commodity/CommodityExpanded.tsx
 'use client';
 
 import { MapPin, Warehouse, Calendar, Droplets, Award, FileText, ArrowRight, Truck, Shield } from 'lucide-react';

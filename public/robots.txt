@@ -1,0 +1,17 @@
+# robots.txt for ELBER MARKET
+User-agent: *
+Allow: /
+
+# Block admin and dashboard pages from indexing
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /warehouse
+Disallow: /warehouse/*
+Disallow: /farmer
+Disallow: /farmer/*
+Disallow: /login
+Disallow: /register
+Disallow: /api
+
+# Sitemap
+Sitemap: https://www.elbermarket.com/sitemap.xml

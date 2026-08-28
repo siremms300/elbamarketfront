@@ -1,3 +1,4 @@
+// client/app/login/page.tsx
 'use client';
 
 import { useState } from 'react';
@@ -40,7 +41,7 @@ export default function LoginPage() {
             <div className="w-10 h-10 bg-elba-primary rounded-xl flex items-center justify-center">
               <Sprout className="w-6 h-6 text-white" />
             </div>
-            <span className="font-bold text-xl text-elba-primary">Elba Market</span>
+            <span className="font-bold text-xl text-elba-primary">Elber Market</span>
           </Link>
         </div>
 

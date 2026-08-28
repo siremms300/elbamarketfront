@@ -1,3 +1,4 @@
+// client/components/commodity/FilterPanel.tsx
 'use client';
 
 import { X } from 'lucide-react';

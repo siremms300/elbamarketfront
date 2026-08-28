@@ -1,3 +1,4 @@
+// client/components/warehouse/WarehouseHeader.tsx
 'use client';
 
 import { useAuth } from '@/context/AuthContext';

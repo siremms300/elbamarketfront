@@ -1,3 +1,4 @@
+// client/app/register/page.tsx
 'use client';
 
 import { useState } from 'react';
@@ -54,7 +55,7 @@ export default function RegisterPage() {
             <div className="w-10 h-10 bg-elba-primary rounded-xl flex items-center justify-center">
               <Sprout className="w-6 h-6 text-white" />
             </div>
-            <span className="font-bold text-xl text-elba-primary">Elba Market</span>
+            <span className="font-bold text-xl text-elba-primary">Elber Market</span>
           </Link>
         </div>
 
@@ -71,7 +72,7 @@ export default function RegisterPage() {
           {step === 1 ? (
             <>
               <h1 className="text-2xl font-bold text-elba-primary text-center">Choose your role</h1>
-              <p className="text-sm text-gray-500 text-center mt-2">How will you use Elba Market?</p>
+              <p className="text-sm text-gray-500 text-center mt-2">How will you use Elber Market?</p>
 
               <div className="mt-6 space-y-2">
                 {roles.map((role) => (

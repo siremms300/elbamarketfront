@@ -1,3 +1,4 @@
+// client/components/farmer/FarmerSidebar.tsx
 'use client';
 
 import { useState } from 'react';

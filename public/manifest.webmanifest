@@ -1,0 +1,17 @@
+{
+  "name": "ELBER MARKET",
+  "short_name": "ELBER MARKET",
+  "description": "Building the infrastructure for agricultural commerce in Africa.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0B7A35",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+ 

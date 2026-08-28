@@ -1,16 +1,15 @@
+// client/components/market/SupplyTable.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Search,
   X,
   Map,
   Package,
   MapPin,
-  ArrowRight,
   Star,
-  Shield,
   ShieldCheck,
   Warehouse,
   Tractor,
@@ -20,9 +19,16 @@ import {
   Filter,
   LayoutList,
   MapIcon,
+  ChevronDown,
+  ChevronUp,
+  MessageCircle,
+  Calendar,
+  Droplets,
+  Award,
 } from 'lucide-react';
 import FilterPanel from './FilterPanel';
 import MarketStatsBar from './MarketStatsBar';
+import { useAuth } from '@/context/AuthContext';
 
 interface Commodity {
   _id: string;
@@ -50,7 +56,23 @@ interface SupplyTableProps {
   loading: boolean;
   totalResults: number;
   stats: any;
-  filters: any;
+  filters: {
+    commodityType: string;
+    grade: string;
+    state: string;
+    locationType: string;
+    minPrice: string;
+    maxPrice: string;
+    minQuantity: string;
+    maxQuantity: string;
+    verifiedOnly: boolean;
+    harvestDays: string;
+    sortBy: string;
+    sortOrder: string;
+    page: number;
+    limit: number;
+    search: string;
+  };
   updateFilter: (key: string, value: string | boolean) => void;
   clearAllFilters: () => void;
   viewMode: 'table' | 'map';
@@ -72,6 +94,8 @@ const locationTypeLabel: Record<string, string> = {
   market: 'Market',
 };
 
+const WHATSAPP_NUMBER = '2349065219811';
+
 export default function SupplyTable({
   commodities,
   loading,
@@ -83,8 +107,12 @@ export default function SupplyTable({
   viewMode,
   setViewMode,
 }: SupplyTableProps) {
+  const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [orderQuantities, setOrderQuantities] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const handleScroll = () => {
@@ -94,10 +122,21 @@ export default function SupplyTable({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const activeFilterCount = Object.entries(filters).filter(([key, value]) => {
-    if (['page', 'limit', 'sortBy', 'sortOrder'].includes(key)) return false;
-    return value !== '' && value !== false;
-  }).length;
+  // SAFE active filter count
+  const activeFilterCount = useMemo(() => {
+    if (!filters || typeof filters !== 'object') {
+      return 0;
+    }
+    try {
+      return Object.entries(filters).filter(([key, value]) => {
+        if (['page', 'limit', 'sortBy', 'sortOrder'].includes(key)) return false;
+        return value !== '' && value !== false;
+      }).length;
+    } catch (error) {
+      console.error('Error calculating filters:', error);
+      return 0;
+    }
+  }, [filters]);
 
   const getProgressColor = (percentage: number) => {
     if (percentage > 60) return 'bg-emerald-500';
@@ -105,18 +144,64 @@ export default function SupplyTable({
     return 'bg-red-500';
   };
 
+  const toggleExpand = (commodityId: string, minimumOrder: number) => {
+    if (expandedId === commodityId) {
+      setExpandedId(null);
+    } else {
+      setExpandedId(commodityId);
+      if (!orderQuantities[commodityId]) {
+        setOrderQuantities(prev => ({ ...prev, [commodityId]: minimumOrder }));
+      }
+    }
+  };
+
+  const updateOrderQuantity = (commodityId: string, delta: number, commodity: Commodity) => {
+    const current = orderQuantities[commodityId] || commodity.minimumOrder;
+    const newQuantity = Math.max(
+      commodity.minimumOrder,
+      Math.min(commodity.availableQuantity, current + delta)
+    );
+    setOrderQuantities(prev => ({ ...prev, [commodityId]: newQuantity }));
+  };
+
+  const handleWhatsAppOrder = (commodity: Commodity) => {
+    if (!isAuthenticated) {
+      router.push('/login');
+      return;
+    }
+
+    const quantity = orderQuantities[commodity._id] || commodity.minimumOrder;
+    const totalPrice = commodity.price.amount * quantity;
+
+    const message = encodeURIComponent(
+      `Hello Elber Market! I'm interested in buying:\n\n` +
+      `🌾 Product: ${commodity.name}\n` +
+      `📊 Grade: ${commodity.grade}\n` +
+      `📦 Quantity: ${quantity} ${commodity.quantity.unit}\n` +
+      `💰 Price: ₦${commodity.price.amount.toLocaleString()}/${commodity.price.perUnit}\n` +
+      `💵 Total: ₦${totalPrice.toLocaleString()}\n\n` +
+      `Please provide more information about this product.`
+    );
+
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
+  };
+
   const mobileChips = [
     { key: 'state', label: filters.state || 'State', active: !!filters.state },
     { key: 'grade', label: filters.grade ? `Grade ${filters.grade}` : 'Grade', active: !!filters.grade },
-    { key: 'locationType', label: filters.locationType ? locationTypeLabel[filters.locationType] || filters.locationType : 'Source', active: !!filters.locationType },
+    { 
+      key: 'locationType', 
+      label: filters.locationType ? locationTypeLabel[filters.locationType] || filters.locationType : 'Source', 
+      active: !!filters.locationType 
+    },
   ];
 
   return (
     <div className="min-h-screen bg-[#f8faf9]">
       <MarketStatsBar
         totalResults={totalResults}
-        commodityCount={stats.byCommodity?.length || 0}
-        stateCount={stats.byState?.length || 0}
+        commodityCount={stats?.byCommodity?.length || 0}
+        stateCount={stats?.byState?.length || 0}
       />
 
       {/* Top Bar */}
@@ -208,7 +293,7 @@ export default function SupplyTable({
                   onClick={() => setViewMode('table')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                     viewMode === 'table'
-                      ? scrolled ? 'bg-white text-elba-primary shadow-sm' : 'bg-white text-elba-primary shadow-sm'
+                      ? 'bg-white text-elba-primary shadow-sm'
                       : scrolled ? 'text-gray-500 hover:text-gray-700' : 'text-white/60 hover:text-white'
                   }`}
                 >
@@ -219,7 +304,7 @@ export default function SupplyTable({
                   onClick={() => setViewMode('map')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                     viewMode === 'map'
-                      ? scrolled ? 'bg-white text-elba-primary shadow-sm' : 'bg-white text-elba-primary shadow-sm'
+                      ? 'bg-white text-elba-primary shadow-sm'
                       : scrolled ? 'text-gray-500 hover:text-gray-700' : 'text-white/60 hover:text-white'
                   }`}
                 >
@@ -261,10 +346,10 @@ export default function SupplyTable({
 
       {/* Active Filters Bar */}
       {activeFilterCount > 0 && (
-        <div className="hidden lg:flex items-center gap-2 px-4 sm:px-6 lg:px-8 py-2.5 bg-white border-b border-gray-100 flex-wrap animate-fade-in">
+        <div className="hidden lg:flex items-center gap-2 px-4 sm:px-6 lg:px-8 py-2.5 bg-white border-b border-gray-100 flex-wrap">
           <span className="text-xs text-gray-400 font-medium">Filters:</span>
           {filters.commodityType && (
-            <span className="text-xs bg-elba-surface border border-elba-surface-dark px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-primary">
+            <span className="text-xs bg-elba-surface border border-gray-200 px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-primary">
               Commodity
               <button onClick={() => updateFilter('commodityType', '')} className="hover:text-red-500 transition-colors">
                 <X className="w-3 h-3" />
@@ -272,7 +357,7 @@ export default function SupplyTable({
             </span>
           )}
           {filters.state && (
-            <span className="text-xs bg-elba-surface border border-elba-surface-dark px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-primary">
+            <span className="text-xs bg-elba-surface border border-gray-200 px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-primary">
               {filters.state}
               <button onClick={() => updateFilter('state', '')} className="hover:text-red-500 transition-colors">
                 <X className="w-3 h-3" />
@@ -280,7 +365,7 @@ export default function SupplyTable({
             </span>
           )}
           {filters.grade && (
-            <span className="text-xs bg-elba-surface border border-elba-surface-dark px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-primary">
+            <span className="text-xs bg-elba-surface border border-gray-200 px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-primary">
               Grade {filters.grade}
               <button onClick={() => updateFilter('grade', '')} className="hover:text-red-500 transition-colors">
                 <X className="w-3 h-3" />
@@ -288,7 +373,7 @@ export default function SupplyTable({
             </span>
           )}
           {filters.locationType && (
-            <span className="text-xs bg-elba-surface border border-elba-surface-dark px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-primary capitalize">
+            <span className="text-xs bg-elba-surface border border-gray-200 px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-primary capitalize">
               {filters.locationType.replace('_', ' ')}
               <button onClick={() => updateFilter('locationType', '')} className="hover:text-red-500 transition-colors">
                 <X className="w-3 h-3" />
@@ -362,68 +447,74 @@ export default function SupplyTable({
               </div>
             )}
 
-            {/* Commodity Rows */}
+            {/* Commodity Cards */}
             {!loading && viewMode === 'table' && commodities.length > 0 && (
               <div className="space-y-3">
-                {commodities.map((commodity, index) => (
-                  <Link
-                    key={commodity._id}
-                    href={`/market/${commodity._id}`}
-                    className="bg-white rounded-2xl border border-gray-100 hover:border-gray-200 hover:shadow-lg transition-all duration-300 overflow-hidden group animate-fade-in block"
-                    style={{ animationDelay: `${index * 50}ms` }}
-                  >
-                    <div className="p-4 sm:p-5">
-                      <div className="flex items-start gap-4">
-                        {/* Image */}
-                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-elba-surface flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
-                          {commodity.images?.[0]?.url ? (
-                            <img src={commodity.images[0].url} alt={commodity.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text-3xl">{commodity.commodityType?.emoji || '📦'}</span>
-                          )}
-                        </div>
+                {commodities.map((commodity, index) => {
+                  const isExpanded = expandedId === commodity._id;
+                  const orderQuantity = orderQuantities[commodity._id] || commodity.minimumOrder;
+                  const totalPrice = commodity.price.amount * orderQuantity;
+                  const daysSinceHarvest = commodity.harvestDate
+                    ? Math.floor((Date.now() - new Date(commodity.harvestDate).getTime()) / (1000 * 60 * 60 * 24))
+                    : null;
 
-                        {/* Info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1.5">
-                            <h3 className="font-bold text-elba-primary text-sm sm:text-base">
-                              {commodity.name}
-                            </h3>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-bold rounded-lg ${
-                                commodity.grade === 'A' ? 'bg-emerald-50 text-emerald-700' :
-                                commodity.grade === 'B' ? 'bg-amber-50 text-amber-700' :
-                                'bg-gray-100 text-gray-600'
-                              }`}>
-                                Grade {commodity.grade}
-                              </span>
-                              {commodity.qualityCertification?.hasCertification && (
-                                <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-lg font-bold">
-                                  <ShieldCheck className="w-2.5 h-2.5" /> Certified
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
-                            <span className="inline-flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded-md">
-                              {locationTypeIcon(commodity.location.locationType)}
-                              <span className="capitalize">{locationTypeLabel[commodity.location.locationType]}</span>
-                            </span>
-                            <span className="inline-flex items-center gap-1">
-                              <MapPin className="w-3 h-3" />
-                              {commodity.location.state}{commodity.location.lga ? `, ${commodity.location.lga}` : ''}
-                            </span>
-                            {commodity.moistureContent && (
-                              <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md">
-                                💧 {commodity.moistureContent.toFixed(1)}%
-                              </span>
+                  return (
+                    <div
+                      key={commodity._id}
+                      className="bg-white rounded-2xl border border-gray-100 hover:border-gray-200 transition-all duration-300 overflow-hidden"
+                    >
+                      {/* Main Row */}
+                      <div className="p-4 sm:p-5">
+                        <div className="flex items-start gap-4">
+                          {/* Emoji/Image */}
+                          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-elba-surface flex items-center justify-center flex-shrink-0 overflow-hidden">
+                            {commodity.images?.[0]?.url ? (
+                              <img src={commodity.images[0].url} alt={commodity.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-3xl">{commodity.commodityType?.emoji || '📦'}</span>
                             )}
                           </div>
 
-                          {/* Quantity + Seller Row */}
-                          <div className="flex flex-col sm:flex-row sm:items-end justify-between mt-3 gap-3">
-                            <div className="flex items-center gap-6">
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1.5">
+                              <h3 className="font-bold text-elba-primary text-sm sm:text-base">
+                                {commodity.name}
+                              </h3>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-bold rounded-lg ${
+                                  commodity.grade === 'A' ? 'bg-emerald-50 text-emerald-700' :
+                                  commodity.grade === 'B' ? 'bg-amber-50 text-amber-700' :
+                                  'bg-gray-100 text-gray-600'
+                                }`}>
+                                  Grade {commodity.grade}
+                                </span>
+                                {commodity.qualityCertification?.hasCertification && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-lg font-bold">
+                                    <ShieldCheck className="w-2.5 h-2.5" /> Certified
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
+                              <span className="inline-flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded-md">
+                                {locationTypeIcon(commodity.location.locationType)}
+                                <span className="capitalize">{locationTypeLabel[commodity.location.locationType]}</span>
+                              </span>
+                              <span className="inline-flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                {commodity.location.state}{commodity.location.lga ? `, ${commodity.location.lga}` : ''}
+                              </span>
+                              {commodity.moistureContent && (
+                                <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md">
+                                  💧 {commodity.moistureContent.toFixed(1)}%
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Quantity + Price */}
+                            <div className="flex flex-col sm:flex-row sm:items-end justify-between mt-3 gap-3">
                               <div>
                                 <div className="flex items-baseline gap-1.5">
                                   <span className="font-mono font-bold text-sm text-elba-primary">
@@ -434,71 +525,178 @@ export default function SupplyTable({
                                 <div className="flex items-center gap-2 mt-1.5">
                                   <div className="w-20 sm:w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                                     <div
-                                      className={`h-full rounded-full transition-all duration-500 ${getProgressColor(commodity.percentageRemaining)}`}
+                                      className={`h-full rounded-full ${getProgressColor(commodity.percentageRemaining)}`}
                                       style={{ width: `${commodity.percentageRemaining}%` }}
                                     />
                                   </div>
                                   <span className="text-[10px] text-gray-400">{commodity.percentageRemaining}%</span>
                                 </div>
                               </div>
-                              <div className="hidden sm:block text-xs text-gray-500">
-                                Min: <span className="font-semibold text-elba-primary">{commodity.minimumOrder} {commodity.quantity.unit}</span>
-                              </div>
-                            </div>
 
-                            <div className="flex items-center gap-3">
-                              <div className="hidden sm:flex items-center gap-1.5">
-                                <div className="w-6 h-6 rounded-full bg-elba-surface flex items-center justify-center">
-                                  <span className="text-[10px] font-bold text-elba-primary">
-                                    {commodity.seller.name.charAt(0)}
-                                  </span>
+                              <div className="flex items-center gap-3">
+                                <div className="text-right">
+                                  <p className="font-mono font-bold text-elba-primary text-lg sm:text-xl">
+                                    ₦{commodity.price.amount.toLocaleString()}
+                                  </p>
+                                  <p className="text-[10px] text-gray-400">per {commodity.price.perUnit}</p>
                                 </div>
-                                <div className="text-xs">
-                                  <p className="font-medium text-elba-primary leading-tight">{commodity.seller.name}</p>
-                                  <div className="flex items-center gap-1">
-                                    {commodity.seller.verificationTier === 'trusted' && (
-                                      <ShieldCheck className="w-3 h-3 text-elba-tertiary" />
-                                    )}
-                                    {commodity.seller.verificationTier === 'verified' && (
-                                      <Shield className="w-3 h-3 text-elba-secondary" />
-                                    )}
-                                    <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                                    <span className="text-gray-500">{commodity.seller.rating.toFixed(1)}</span>
-                                  </div>
-                                </div>
+                                <button
+                                  onClick={() => toggleExpand(commodity._id, commodity.minimumOrder)}
+                                  className="btn-elba-primary text-xs sm:text-sm py-2.5 px-4 flex items-center gap-1.5"
+                                >
+                                  {isExpanded ? 'Hide Details' : 'See Details'}
+                                  {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                </button>
                               </div>
                             </div>
                           </div>
-                        </div>
-
-                        {/* Price + CTA */}
-                        <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                          <div className="text-right">
-                            <p className="font-mono font-bold text-elba-primary text-lg sm:text-xl">
-                              ₦{commodity.price.amount.toLocaleString()}
-                            </p>
-                            <p className="text-[10px] text-gray-400">per {commodity.price.perUnit}</p>
-                          </div>
-                          <span className="btn-elba-primary text-xs sm:text-sm py-2.5 px-5 flex items-center gap-1.5 shadow-lg shadow-elba-primary/10 group-hover:shadow-elba-primary/20 transition-all group-hover:-translate-y-0.5">
-                            Buy Now <ArrowRight className="w-3.5 h-3.5" />
-                          </span>
                         </div>
                       </div>
+
+                      {/* Expandable Details */}
+                      {isExpanded && (
+                        <div className="border-t border-gray-100 bg-gray-50/50 px-4 sm:px-6 py-5">
+                          {/* Quick Stats */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                            <div className="bg-white p-3 rounded-xl border border-gray-100">
+                              <p className="text-[10px] text-gray-500 uppercase mb-1">Available</p>
+                              <p className="font-mono font-semibold text-elba-primary text-sm">
+                                {commodity.availableQuantity.toLocaleString()} {commodity.quantity.unit}
+                              </p>
+                            </div>
+                            <div className="bg-white p-3 rounded-xl border border-gray-100">
+                              <p className="text-[10px] text-gray-500 uppercase mb-1">Min. Order</p>
+                              <p className="font-mono font-semibold text-elba-primary text-sm">
+                                {commodity.minimumOrder} {commodity.quantity.unit}
+                              </p>
+                            </div>
+                            <div className="bg-white p-3 rounded-xl border border-gray-100">
+                              <p className="text-[10px] text-gray-500 uppercase mb-1">Seller Rating</p>
+                              <div className="flex items-center gap-1">
+                                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                                <span className="font-semibold text-elba-primary text-sm">{commodity.seller.rating.toFixed(1)}</span>
+                              </div>
+                            </div>
+                            <div className="bg-white p-3 rounded-xl border border-gray-100">
+                              <p className="text-[10px] text-gray-500 uppercase mb-1">Seller Trades</p>
+                              <p className="font-semibold text-elba-primary text-sm">{commodity.seller.totalTransactions}</p>
+                            </div>
+                          </div>
+
+                          {/* Additional Details */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                            {commodity.harvestDate && (
+                              <div className="flex items-center gap-2">
+                                <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                <div>
+                                  <p className="text-xs text-gray-500">Harvest Date</p>
+                                  <p className="text-sm font-medium text-elba-primary">
+                                    {new Date(commodity.harvestDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                    {daysSinceHarvest !== null && (
+                                      <span className="text-xs text-gray-500 ml-1">({daysSinceHarvest} days ago)</span>
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+
+                            {commodity.moistureContent && (
+                              <div className="flex items-center gap-2">
+                                <Droplets className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                <div>
+                                  <p className="text-xs text-gray-500">Moisture Content</p>
+                                  <p className="text-sm font-medium text-elba-primary">{commodity.moistureContent.toFixed(1)}%</p>
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-2">
+                              <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                              <div>
+                                <p className="text-xs text-gray-500">Location</p>
+                                <p className="text-sm font-medium text-elba-primary">
+                                  {[commodity.location.community, commodity.location.lga, commodity.location.state].filter(Boolean).join(', ')}
+                                </p>
+                              </div>
+                            </div>
+
+                            {commodity.qualityCertification?.hasCertification && (
+                              <div className="flex items-center gap-2">
+                                <Award className="w-4 h-4 text-elba-secondary flex-shrink-0" />
+                                <div>
+                                  <p className="text-xs text-gray-500">Quality Certified</p>
+                                  <p className="text-sm font-medium text-elba-secondary">
+                                    {commodity.qualityCertification.certifyingBody || 'Certified'}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Order Section */}
+                          <div className="bg-white rounded-xl border border-gray-100 p-4 sm:p-5">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                              {/* Quantity Selector */}
+                              <div className="flex items-center gap-3">
+                                <span className="text-xs font-bold text-gray-500 uppercase">Quantity:</span>
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    onClick={() => updateOrderQuantity(commodity._id, -1, commodity)}
+                                    disabled={orderQuantity <= commodity.minimumOrder}
+                                    className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 disabled:opacity-30"
+                                  >
+                                    <span className="text-lg">−</span>
+                                  </button>
+                                  <div className="w-20 text-center bg-gray-50 border border-gray-200 rounded-lg py-1.5">
+                                    <span className="text-sm font-bold text-elba-primary">{orderQuantity}</span>
+                                    <span className="text-[10px] text-gray-500 ml-0.5">{commodity.quantity.unit}</span>
+                                  </div>
+                                  <button
+                                    onClick={() => updateOrderQuantity(commodity._id, 1, commodity)}
+                                    disabled={orderQuantity >= commodity.availableQuantity}
+                                    className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 disabled:opacity-30"
+                                  >
+                                    <span className="text-lg">+</span>
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Total */}
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-gray-500 uppercase">Total:</span>
+                                <span className="text-lg font-bold text-elba-primary">₦{totalPrice.toLocaleString()}</span>
+                              </div>
+
+                              {/* WhatsApp Button */}
+                              <button
+                                onClick={() => handleWhatsAppOrder(commodity)}
+                                className="sm:ml-auto w-full sm:w-auto bg-[#25D366] text-white px-6 py-3 rounded-xl text-sm font-semibold hover:bg-[#1fb855] transition-colors flex items-center justify-center gap-2"
+                              >
+                                <MessageCircle className="w-4 h-4" />
+                                Order via WhatsApp
+                              </button>
+                            </div>
+                            <p className="text-[10px] text-gray-400 mt-3 text-center sm:text-right">
+                              You'll be redirected to WhatsApp to complete your order
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </Link>
-                ))}
+                  );
+                })}
               </div>
             )}
 
             {/* Map View */}
             {viewMode === 'map' && (
-              <div className="bg-white border border-gray-200 rounded-3xl h-[650px] flex items-center justify-center shadow-sm">
+              <div className="bg-white border border-gray-200 rounded-3xl h-[650px] flex items-center justify-center">
                 <div className="text-center">
                   <div className="w-20 h-20 bg-elba-surface rounded-3xl flex items-center justify-center mx-auto mb-6">
                     <Map className="w-10 h-10 text-gray-300" />
                   </div>
                   <p className="text-xl font-semibold text-gray-500">Map View</p>
-                  <p className="text-sm text-gray-400 mt-2">Interactive commodity map coming soon</p>
+                  <p className="text-sm text-gray-400 mt-2">Coming soon</p>
                 </div>
               </div>
             )}
@@ -514,14 +712,14 @@ export default function SupplyTable({
                   <button
                     onClick={() => updateFilter('page', String(filters.page - 1))}
                     disabled={filters.page === 1}
-                    className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed font-medium text-gray-600 transition-all"
+                    className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40 font-medium text-gray-600"
                   >
                     Previous
                   </button>
                   <button
                     onClick={() => updateFilter('page', String(filters.page + 1))}
                     disabled={filters.page * filters.limit >= totalResults}
-                    className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed font-medium text-gray-600 transition-all"
+                    className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40 font-medium text-gray-600"
                   >
                     Next
                   </button>
@@ -535,17 +733,11 @@ export default function SupplyTable({
       {/* Mobile Filter Drawer */}
       {mobileFilterOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
-            onClick={() => setMobileFilterOpen(false)}
-          />
-          <div className="absolute left-0 top-0 bottom-0 w-[85vw] max-w-sm bg-white shadow-2xl animate-slide-right overflow-y-auto">
-            <div className="sticky top-0 bg-white/95 backdrop-blur-xl border-b border-gray-100 px-5 py-4 flex items-center justify-between z-10">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileFilterOpen(false)} />
+          <div className="absolute left-0 top-0 bottom-0 w-[85vw] max-w-sm bg-white shadow-2xl overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between">
               <h3 className="font-bold text-elba-primary text-lg">Filters</h3>
-              <button
-                onClick={() => setMobileFilterOpen(false)}
-                className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-              >
+              <button onClick={() => setMobileFilterOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
@@ -557,10 +749,10 @@ export default function SupplyTable({
                 onClearAll={clearAllFilters}
               />
             </div>
-            <div className="sticky bottom-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 px-5 py-4">
+            <div className="sticky bottom-0 bg-white border-t border-gray-100 px-5 py-4">
               <button
                 onClick={() => setMobileFilterOpen(false)}
-                className="btn-elba-primary w-full py-3.5 text-sm font-semibold rounded-xl shadow-lg shadow-elba-primary/20"
+                className="btn-elba-primary w-full py-3.5 text-sm font-semibold rounded-xl"
               >
                 Apply Filters
               </button>
@@ -571,6 +763,2365 @@ export default function SupplyTable({
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// // client/components/market/SupplyTable.tsx
+// 'use client';
+
+// import { useState, useEffect, useMemo } from 'react';
+// import { useRouter } from 'next/navigation';
+// import {
+//   Search,
+//   X,
+//   Map,
+//   Package,
+//   MapPin,
+//   Star,
+//   ShieldCheck,
+//   Warehouse,
+//   Tractor,
+//   Store,
+//   TrendingUp,
+//   TrendingDown,
+//   Filter,
+//   LayoutList,
+//   MapIcon,
+//   ChevronDown,
+//   ChevronUp,
+//   MessageCircle,
+//   Calendar,
+//   Droplets,
+//   Award,
+// } from 'lucide-react';
+// import FilterPanel from './FilterPanel';
+// import MarketStatsBar from './MarketStatsBar';
+// import { useAuth } from '@/context/AuthContext';
+
+// interface Commodity {
+//   _id: string;
+//   commodityType?: { _id: string; name: string; emoji: string; slug: string; category: string };
+//   name: string;
+//   grade: string;
+//   quantity: { amount: number; unit: string };
+//   price: { amount: number; currency: string; perUnit: string; negotiable: boolean };
+//   location: { state: string; lga: string; community: string; locationType: string; warehouseId?: any };
+//   harvestDate: string;
+//   moistureContent: number;
+//   images: { url: string; publicId: string }[];
+//   seller: { sellerType: string; name: string; verificationTier: string; rating: number; totalTransactions: number };
+//   status: string;
+//   availableQuantity: number;
+//   displayPrice: string;
+//   percentageRemaining: number;
+//   minimumOrder: number;
+//   qualityCertification: { hasCertification: boolean; certifyingBody?: string };
+//   createdAt: string;
+// }
+
+// interface SupplyTableProps {
+//   commodities: Commodity[];
+//   loading: boolean;
+//   totalResults: number;
+//   stats: any;
+//   filters: {
+//     commodityType: string;
+//     grade: string;
+//     state: string;
+//     locationType: string;
+//     minPrice: string;
+//     maxPrice: string;
+//     minQuantity: string;
+//     maxQuantity: string;
+//     verifiedOnly: boolean;
+//     harvestDays: string;
+//     sortBy: string;
+//     sortOrder: string;
+//     page: number;
+//     limit: number;
+//     search: string;
+//   };
+//   updateFilter: (key: string, value: string | boolean) => void;
+//   clearAllFilters: () => void;
+//   viewMode: 'table' | 'map';
+//   setViewMode: (mode: 'table' | 'map') => void;
+// }
+
+// const locationTypeIcon = (type: string) => {
+//   switch (type) {
+//     case 'warehouse': return <Warehouse className="w-3 h-3" />;
+//     case 'farm': return <Tractor className="w-3 h-3" />;
+//     default: return <Store className="w-3 h-3" />;
+//   }
+// };
+
+// const locationTypeLabel: Record<string, string> = {
+//   warehouse: 'Warehouse',
+//   farm: 'Farm Gate',
+//   collection_center: 'Collection Center',
+//   market: 'Market',
+// };
+
+// const WHATSAPP_NUMBER = '2349065219811';
+
+// export default function SupplyTable({
+//   commodities,
+//   loading,
+//   totalResults,
+//   stats,
+//   filters,
+//   updateFilter,
+//   clearAllFilters,
+//   viewMode,
+//   setViewMode,
+// }: SupplyTableProps) {
+//   const router = useRouter();
+//   const { isAuthenticated } = useAuth();
+//   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+//   const [scrolled, setScrolled] = useState(false);
+//   const [expandedId, setExpandedId] = useState<string | null>(null);
+//   const [orderQuantities, setOrderQuantities] = useState<Record<string, number>>({});
+
+//   useEffect(() => {
+//     const handleScroll = () => {
+//       setScrolled(window.scrollY > 80);
+//     };
+//     window.addEventListener('scroll', handleScroll);
+//     return () => window.removeEventListener('scroll', handleScroll);
+//   }, []);
+
+//   const activeFilterCount = useMemo(() => {
+//     if (!filters) return 0;
+//     return Object.entries(filters).filter(([key, value]) => {
+//       if (['page', 'limit', 'sortBy', 'sortOrder'].includes(key)) return false;
+//       return value !== '' && value !== false;
+//     }).length;
+//   }, [filters]);
+
+//   const getProgressColor = (percentage: number) => {
+//     if (percentage > 60) return 'bg-emerald-500';
+//     if (percentage > 30) return 'bg-amber-500';
+//     return 'bg-red-500';
+//   };
+
+//   const toggleExpand = (commodityId: string, minimumOrder: number) => {
+//     if (expandedId === commodityId) {
+//       setExpandedId(null);
+//     } else {
+//       setExpandedId(commodityId);
+//       if (!orderQuantities[commodityId]) {
+//         setOrderQuantities(prev => ({ ...prev, [commodityId]: minimumOrder }));
+//       }
+//     }
+//   };
+
+//   const updateOrderQuantity = (commodityId: string, delta: number, commodity: Commodity) => {
+//     const current = orderQuantities[commodityId] || commodity.minimumOrder;
+//     const newQuantity = Math.max(
+//       commodity.minimumOrder,
+//       Math.min(commodity.availableQuantity, current + delta)
+//     );
+//     setOrderQuantities(prev => ({ ...prev, [commodityId]: newQuantity }));
+//   };
+
+//   const handleWhatsAppOrder = (commodity: Commodity) => {
+//     if (!isAuthenticated) {
+//       router.push('/login');
+//       return;
+//     }
+
+//     const quantity = orderQuantities[commodity._id] || commodity.minimumOrder;
+//     const totalPrice = commodity.price.amount * quantity;
+
+//     const message = encodeURIComponent(
+//       `Hello Elber Market! I'm interested in buying:\n\n` +
+//       `🌾 Product: ${commodity.name}\n` +
+//       `📊 Grade: ${commodity.grade}\n` +
+//       `📦 Quantity: ${quantity} ${commodity.quantity.unit}\n` +
+//       `💰 Price: ₦${commodity.price.amount.toLocaleString()}/${commodity.price.perUnit}\n` +
+//       `💵 Total: ₦${totalPrice.toLocaleString()}\n\n` +
+//       `Please provide more information about this product.`
+//     );
+
+//     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
+//   };
+
+//   const mobileChips = [
+//     { key: 'state', label: filters.state || 'State', active: !!filters.state },
+//     { key: 'grade', label: filters.grade ? `Grade ${filters.grade}` : 'Grade', active: !!filters.grade },
+//     { 
+//       key: 'locationType', 
+//       label: filters.locationType ? locationTypeLabel[filters.locationType] || filters.locationType : 'Source', 
+//       active: !!filters.locationType 
+//     },
+//   ];
+
+//   return (
+//     <div className="min-h-screen bg-[#f8faf9]">
+//       <MarketStatsBar
+//         totalResults={totalResults}
+//         commodityCount={stats.byCommodity?.length || 0}
+//         stateCount={stats.byState?.length || 0}
+//       />
+
+//       {/* Top Bar */}
+//       <div className={`sticky z-40 transition-all duration-300 ${
+//         scrolled
+//           ? 'top-0 bg-white/95 backdrop-blur-xl border-b border-gray-100 shadow-sm'
+//           : 'top-0 bg-elba-primary'
+//       }`}>
+//         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-3">
+//           <div className="flex items-center gap-3">
+//             {/* Mobile Filter Button */}
+//             <button
+//               onClick={() => setMobileFilterOpen(true)}
+//               className={`lg:hidden flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all flex-shrink-0 ${
+//                 scrolled
+//                   ? 'bg-gray-100 text-elba-primary hover:bg-gray-200'
+//                   : 'bg-white/10 border border-white/10 text-white hover:bg-white/15'
+//               }`}
+//             >
+//               <Filter className="w-4 h-4" />
+//               {activeFilterCount > 0 && (
+//                 <span className="bg-elba-secondary text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+//                   {activeFilterCount}
+//                 </span>
+//               )}
+//             </button>
+
+//             {/* Search */}
+//             <div className="relative flex-1 max-w-md">
+//               <Search className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${
+//                 scrolled ? 'text-gray-400' : 'text-white/40'
+//               }`} />
+//               <input
+//                 type="text"
+//                 placeholder="Search commodities..."
+//                 value={filters.search}
+//                 onChange={(e) => updateFilter('search', e.target.value)}
+//                 className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm transition-all focus:outline-none focus:ring-2 focus:ring-elba-secondary/20 ${
+//                   scrolled
+//                     ? 'bg-gray-50 border border-gray-200 text-elba-primary placeholder:text-gray-400 focus:bg-white focus:border-elba-secondary'
+//                     : 'bg-white/10 border border-white/10 text-white placeholder:text-white/30 focus:bg-white/15 focus:border-white/20'
+//                 }`}
+//               />
+//               {filters.search && (
+//                 <button
+//                   onClick={() => updateFilter('search', '')}
+//                   className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors ${
+//                     scrolled ? 'text-gray-400 hover:text-gray-600' : 'text-white/40 hover:text-white'
+//                   }`}
+//                 >
+//                   <X className="w-4 h-4" />
+//                 </button>
+//               )}
+//             </div>
+
+//             {/* Sort + View Toggle */}
+//             <div className="hidden sm:flex items-center gap-2">
+//               <select
+//                 value={filters.sortBy}
+//                 onChange={(e) => updateFilter('sortBy', e.target.value)}
+//                 className={`rounded-xl px-3 py-2.5 text-sm transition-all focus:outline-none ${
+//                   scrolled
+//                     ? 'bg-gray-50 border border-gray-200 text-elba-primary'
+//                     : 'bg-white/10 border border-white/10 text-white'
+//                 }`}
+//               >
+//                 <option value="date" className="text-elba-primary">Most Recent</option>
+//                 <option value="price" className="text-elba-primary">Price</option>
+//                 <option value="quantity" className="text-elba-primary">Quantity</option>
+//                 <option value="rating" className="text-elba-primary">Rating</option>
+//               </select>
+
+//               <button
+//                 onClick={() => updateFilter('sortOrder', filters.sortOrder === 'asc' ? 'desc' : 'asc')}
+//                 className={`p-2.5 rounded-xl transition-all ${
+//                   scrolled
+//                     ? 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'
+//                     : 'bg-white/10 border border-white/10 text-white/70 hover:text-white hover:bg-white/15'
+//                 }`}
+//               >
+//                 {filters.sortOrder === 'asc' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+//               </button>
+
+//               {/* View Toggle */}
+//               <div className={`flex rounded-xl p-0.5 border transition-all ${
+//                 scrolled ? 'bg-gray-100 border-gray-200' : 'bg-white/10 border-white/10'
+//               }`}>
+//                 <button
+//                   onClick={() => setViewMode('table')}
+//                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+//                     viewMode === 'table'
+//                       ? 'bg-white text-elba-primary shadow-sm'
+//                       : scrolled ? 'text-gray-500 hover:text-gray-700' : 'text-white/60 hover:text-white'
+//                   }`}
+//                 >
+//                   <LayoutList className="w-3.5 h-3.5" />
+//                   List
+//                 </button>
+//                 <button
+//                   onClick={() => setViewMode('map')}
+//                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+//                     viewMode === 'map'
+//                       ? 'bg-white text-elba-primary shadow-sm'
+//                       : scrolled ? 'text-gray-500 hover:text-gray-700' : 'text-white/60 hover:text-white'
+//                   }`}
+//                 >
+//                   <MapIcon className="w-3.5 h-3.5" />
+//                   Map
+//                 </button>
+//               </div>
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Mobile Filter Chips */}
+//       <div className="lg:hidden bg-white border-b border-gray-100 overflow-x-auto">
+//         <div className="flex gap-2 px-4 py-2.5">
+//           {mobileChips.map((chip) => (
+//             <button
+//               key={chip.key}
+//               onClick={() => setMobileFilterOpen(true)}
+//               className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+//                 chip.active
+//                   ? 'bg-elba-primary text-white border-elba-primary shadow-sm'
+//                   : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300'
+//               }`}
+//             >
+//               {chip.label}
+//             </button>
+//           ))}
+//           {filters.verifiedOnly && (
+//             <button
+//               onClick={() => setMobileFilterOpen(true)}
+//               className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border bg-elba-primary text-white border-elba-primary shadow-sm"
+//             >
+//               Verified ✓
+//             </button>
+//           )}
+//         </div>
+//       </div>
+
+//       {/* Active Filters Bar */}
+//       {activeFilterCount > 0 && (
+//         <div className="hidden lg:flex items-center gap-2 px-4 sm:px-6 lg:px-8 py-2.5 bg-white border-b border-gray-100 flex-wrap">
+//           <span className="text-xs text-gray-400 font-medium">Filters:</span>
+//           {filters.commodityType && (
+//             <span className="text-xs bg-elba-surface border border-gray-200 px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-primary">
+//               Commodity
+//               <button onClick={() => updateFilter('commodityType', '')} className="hover:text-red-500 transition-colors">
+//                 <X className="w-3 h-3" />
+//               </button>
+//             </span>
+//           )}
+//           {filters.state && (
+//             <span className="text-xs bg-elba-surface border border-gray-200 px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-primary">
+//               {filters.state}
+//               <button onClick={() => updateFilter('state', '')} className="hover:text-red-500 transition-colors">
+//                 <X className="w-3 h-3" />
+//               </button>
+//             </span>
+//           )}
+//           {filters.grade && (
+//             <span className="text-xs bg-elba-surface border border-gray-200 px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-primary">
+//               Grade {filters.grade}
+//               <button onClick={() => updateFilter('grade', '')} className="hover:text-red-500 transition-colors">
+//                 <X className="w-3 h-3" />
+//               </button>
+//             </span>
+//           )}
+//           {filters.locationType && (
+//             <span className="text-xs bg-elba-surface border border-gray-200 px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-primary capitalize">
+//               {filters.locationType.replace('_', ' ')}
+//               <button onClick={() => updateFilter('locationType', '')} className="hover:text-red-500 transition-colors">
+//                 <X className="w-3 h-3" />
+//               </button>
+//             </span>
+//           )}
+//           {filters.verifiedOnly && (
+//             <span className="text-xs bg-elba-secondary/10 border border-elba-secondary/20 px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-secondary">
+//               Verified only
+//               <button onClick={() => updateFilter('verifiedOnly', false)} className="hover:text-red-500 transition-colors">
+//                 <X className="w-3 h-3" />
+//               </button>
+//             </span>
+//           )}
+//           <button
+//             onClick={clearAllFilters}
+//             className="text-xs text-red-500 hover:text-red-600 font-medium ml-2 transition-colors"
+//           >
+//             Clear all
+//           </button>
+//         </div>
+//       )}
+
+//       {/* Main Layout */}
+//       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+//         <div className="flex gap-8">
+//           {/* Desktop Sidebar */}
+//           <aside className="hidden lg:block w-72 flex-shrink-0">
+//             <div className="sticky top-40 max-h-[calc(100vh-12rem)] flex flex-col">
+//               <FilterPanel
+//                 filters={filters}
+//                 updateFilter={updateFilter}
+//                 stats={stats}
+//                 onClearAll={clearAllFilters}
+//                 isSidebar
+//               />
+//             </div>
+//           </aside>
+
+//           {/* Main Content */}
+//           <main className="flex-1 min-w-0">
+//             {/* Loading State */}
+//             {loading && (
+//               <div className="space-y-3">
+//                 {[...Array(6)].map((_, i) => (
+//                   <div key={i} className="bg-white rounded-2xl p-5 border border-gray-100 animate-pulse">
+//                     <div className="flex items-center gap-4">
+//                       <div className="w-12 h-12 rounded-xl bg-gray-100" />
+//                       <div className="flex-1 space-y-2">
+//                         <div className="h-4 bg-gray-100 rounded-lg w-1/3" />
+//                         <div className="h-3 bg-gray-50 rounded-lg w-1/4" />
+//                       </div>
+//                       <div className="space-y-2">
+//                         <div className="h-5 bg-gray-100 rounded-lg w-24" />
+//                         <div className="h-9 bg-gray-100 rounded-xl w-28" />
+//                       </div>
+//                     </div>
+//                   </div>
+//                 ))}
+//               </div>
+//             )}
+
+//             {/* Empty State */}
+//             {!loading && commodities.length === 0 && (
+//               <div className="text-center py-20">
+//                 <div className="w-20 h-20 bg-elba-surface rounded-3xl flex items-center justify-center mx-auto mb-6">
+//                   <Package className="w-10 h-10 text-gray-300" />
+//                 </div>
+//                 <p className="text-xl font-semibold text-gray-500">No commodities found</p>
+//                 <p className="text-sm text-gray-400 mt-2">Try adjusting your filters or search terms</p>
+//               </div>
+//             )}
+
+//             {/* Commodity Cards */}
+//             {!loading && viewMode === 'table' && commodities.length > 0 && (
+//               <div className="space-y-3">
+//                 {commodities.map((commodity, index) => {
+//                   const isExpanded = expandedId === commodity._id;
+//                   const orderQuantity = orderQuantities[commodity._id] || commodity.minimumOrder;
+//                   const totalPrice = commodity.price.amount * orderQuantity;
+//                   const daysSinceHarvest = commodity.harvestDate
+//                     ? Math.floor((Date.now() - new Date(commodity.harvestDate).getTime()) / (1000 * 60 * 60 * 24))
+//                     : null;
+
+//                   return (
+//                     <div
+//                       key={commodity._id}
+//                       className="bg-white rounded-2xl border border-gray-100 hover:border-gray-200 transition-all duration-300 overflow-hidden"
+//                       style={{ animationDelay: `${index * 50}ms` }}
+//                     >
+//                       {/* Main Row */}
+//                       <div className="p-4 sm:p-5">
+//                         <div className="flex items-start gap-4">
+//                           {/* Emoji/Image */}
+//                           <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-elba-surface flex items-center justify-center flex-shrink-0 overflow-hidden">
+//                             {commodity.images?.[0]?.url ? (
+//                               <img src={commodity.images[0].url} alt={commodity.name} className="w-full h-full object-cover" />
+//                             ) : (
+//                               <span className="text-3xl">{commodity.commodityType?.emoji || '📦'}</span>
+//                             )}
+//                           </div>
+
+//                           {/* Info */}
+//                           <div className="flex-1 min-w-0">
+//                             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1.5">
+//                               <h3 className="font-bold text-elba-primary text-sm sm:text-base">
+//                                 {commodity.name}
+//                               </h3>
+//                               <div className="flex items-center gap-2 flex-wrap">
+//                                 <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-bold rounded-lg ${
+//                                   commodity.grade === 'A' ? 'bg-emerald-50 text-emerald-700' :
+//                                   commodity.grade === 'B' ? 'bg-amber-50 text-amber-700' :
+//                                   'bg-gray-100 text-gray-600'
+//                                 }`}>
+//                                   Grade {commodity.grade}
+//                                 </span>
+//                                 {commodity.qualityCertification?.hasCertification && (
+//                                   <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-lg font-bold">
+//                                     <ShieldCheck className="w-2.5 h-2.5" /> Certified
+//                                   </span>
+//                                 )}
+//                               </div>
+//                             </div>
+
+//                             <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
+//                               <span className="inline-flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded-md">
+//                                 {locationTypeIcon(commodity.location.locationType)}
+//                                 <span className="capitalize">{locationTypeLabel[commodity.location.locationType]}</span>
+//                               </span>
+//                               <span className="inline-flex items-center gap-1">
+//                                 <MapPin className="w-3 h-3" />
+//                                 {commodity.location.state}{commodity.location.lga ? `, ${commodity.location.lga}` : ''}
+//                               </span>
+//                               {commodity.moistureContent && (
+//                                 <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md">
+//                                   💧 {commodity.moistureContent.toFixed(1)}%
+//                                 </span>
+//                               )}
+//                             </div>
+
+//                             {/* Quantity + Price */}
+//                             <div className="flex flex-col sm:flex-row sm:items-end justify-between mt-3 gap-3">
+//                               <div>
+//                                 <div className="flex items-baseline gap-1.5">
+//                                   <span className="font-mono font-bold text-sm text-elba-primary">
+//                                     {commodity.availableQuantity.toLocaleString()}
+//                                   </span>
+//                                   <span className="text-xs text-gray-500">{commodity.quantity.unit}</span>
+//                                 </div>
+//                                 <div className="flex items-center gap-2 mt-1.5">
+//                                   <div className="w-20 sm:w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+//                                     <div
+//                                       className={`h-full rounded-full ${getProgressColor(commodity.percentageRemaining)}`}
+//                                       style={{ width: `${commodity.percentageRemaining}%` }}
+//                                     />
+//                                   </div>
+//                                   <span className="text-[10px] text-gray-400">{commodity.percentageRemaining}%</span>
+//                                 </div>
+//                               </div>
+
+//                               <div className="flex items-center gap-3">
+//                                 <div className="text-right">
+//                                   <p className="font-mono font-bold text-elba-primary text-lg sm:text-xl">
+//                                     ₦{commodity.price.amount.toLocaleString()}
+//                                   </p>
+//                                   <p className="text-[10px] text-gray-400">per {commodity.price.perUnit}</p>
+//                                 </div>
+//                                 <button
+//                                   onClick={() => toggleExpand(commodity._id, commodity.minimumOrder)}
+//                                   className="btn-elba-primary text-xs sm:text-sm py-2.5 px-4 flex items-center gap-1.5"
+//                                 >
+//                                   {isExpanded ? 'Hide Details' : 'See Details'}
+//                                   {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+//                                 </button>
+//                               </div>
+//                             </div>
+//                           </div>
+//                         </div>
+//                       </div>
+
+//                       {/* Expandable Details */}
+//                       {isExpanded && (
+//                         <div className="border-t border-gray-100 bg-gray-50/50 px-4 sm:px-6 py-5">
+//                           {/* Quick Stats */}
+//                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+//                             <div className="bg-white p-3 rounded-xl border border-gray-100">
+//                               <p className="text-[10px] text-gray-500 uppercase mb-1">Available</p>
+//                               <p className="font-mono font-semibold text-elba-primary text-sm">
+//                                 {commodity.availableQuantity.toLocaleString()} {commodity.quantity.unit}
+//                               </p>
+//                             </div>
+//                             <div className="bg-white p-3 rounded-xl border border-gray-100">
+//                               <p className="text-[10px] text-gray-500 uppercase mb-1">Min. Order</p>
+//                               <p className="font-mono font-semibold text-elba-primary text-sm">
+//                                 {commodity.minimumOrder} {commodity.quantity.unit}
+//                               </p>
+//                             </div>
+//                             <div className="bg-white p-3 rounded-xl border border-gray-100">
+//                               <p className="text-[10px] text-gray-500 uppercase mb-1">Seller Rating</p>
+//                               <div className="flex items-center gap-1">
+//                                 <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+//                                 <span className="font-semibold text-elba-primary text-sm">{commodity.seller.rating.toFixed(1)}</span>
+//                               </div>
+//                             </div>
+//                             <div className="bg-white p-3 rounded-xl border border-gray-100">
+//                               <p className="text-[10px] text-gray-500 uppercase mb-1">Seller Trades</p>
+//                               <p className="font-semibold text-elba-primary text-sm">{commodity.seller.totalTransactions}</p>
+//                             </div>
+//                           </div>
+
+//                           {/* Additional Details */}
+//                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+//                             {commodity.harvestDate && (
+//                               <div className="flex items-center gap-2">
+//                                 <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+//                                 <div>
+//                                   <p className="text-xs text-gray-500">Harvest Date</p>
+//                                   <p className="text-sm font-medium text-elba-primary">
+//                                     {new Date(commodity.harvestDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+//                                     {daysSinceHarvest !== null && (
+//                                       <span className="text-xs text-gray-500 ml-1">({daysSinceHarvest} days ago)</span>
+//                                     )}
+//                                   </p>
+//                                 </div>
+//                               </div>
+//                             )}
+
+//                             {commodity.moistureContent && (
+//                               <div className="flex items-center gap-2">
+//                                 <Droplets className="w-4 h-4 text-gray-400 flex-shrink-0" />
+//                                 <div>
+//                                   <p className="text-xs text-gray-500">Moisture Content</p>
+//                                   <p className="text-sm font-medium text-elba-primary">{commodity.moistureContent.toFixed(1)}%</p>
+//                                 </div>
+//                               </div>
+//                             )}
+
+//                             <div className="flex items-center gap-2">
+//                               <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
+//                               <div>
+//                                 <p className="text-xs text-gray-500">Location</p>
+//                                 <p className="text-sm font-medium text-elba-primary">
+//                                   {[commodity.location.community, commodity.location.lga, commodity.location.state].filter(Boolean).join(', ')}
+//                                 </p>
+//                               </div>
+//                             </div>
+
+//                             {commodity.qualityCertification?.hasCertification && (
+//                               <div className="flex items-center gap-2">
+//                                 <Award className="w-4 h-4 text-elba-secondary flex-shrink-0" />
+//                                 <div>
+//                                   <p className="text-xs text-gray-500">Quality Certified</p>
+//                                   <p className="text-sm font-medium text-elba-secondary">
+//                                     {commodity.qualityCertification.certifyingBody || 'Certified'}
+//                                   </p>
+//                                 </div>
+//                               </div>
+//                             )}
+//                           </div>
+
+//                           {/* Order Section */}
+//                           <div className="bg-white rounded-xl border border-gray-100 p-4 sm:p-5">
+//                             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+//                               {/* Quantity Selector */}
+//                               <div className="flex items-center gap-3">
+//                                 <span className="text-xs font-bold text-gray-500 uppercase">Quantity:</span>
+//                                 <div className="flex items-center gap-1.5">
+//                                   <button
+//                                     onClick={() => updateOrderQuantity(commodity._id, -1, commodity)}
+//                                     disabled={orderQuantity <= commodity.minimumOrder}
+//                                     className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 disabled:opacity-30"
+//                                   >
+//                                     <span className="text-lg">−</span>
+//                                   </button>
+//                                   <div className="w-20 text-center bg-gray-50 border border-gray-200 rounded-lg py-1.5">
+//                                     <span className="text-sm font-bold text-elba-primary">{orderQuantity}</span>
+//                                     <span className="text-[10px] text-gray-500 ml-0.5">{commodity.quantity.unit}</span>
+//                                   </div>
+//                                   <button
+//                                     onClick={() => updateOrderQuantity(commodity._id, 1, commodity)}
+//                                     disabled={orderQuantity >= commodity.availableQuantity}
+//                                     className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 disabled:opacity-30"
+//                                   >
+//                                     <span className="text-lg">+</span>
+//                                   </button>
+//                                 </div>
+//                               </div>
+
+//                               {/* Total */}
+//                               <div className="flex items-center gap-2">
+//                                 <span className="text-xs font-bold text-gray-500 uppercase">Total:</span>
+//                                 <span className="text-lg font-bold text-elba-primary">₦{totalPrice.toLocaleString()}</span>
+//                               </div>
+
+//                               {/* WhatsApp Button */}
+//                               <button
+//                                 onClick={() => handleWhatsAppOrder(commodity)}
+//                                 className="sm:ml-auto w-full sm:w-auto bg-[#25D366] text-white px-6 py-3 rounded-xl text-sm font-semibold hover:bg-[#1fb855] transition-colors flex items-center justify-center gap-2"
+//                               >
+//                                 <MessageCircle className="w-4 h-4" />
+//                                 Order via WhatsApp
+//                               </button>
+//                             </div>
+//                             <p className="text-[10px] text-gray-400 mt-3 text-center sm:text-right">
+//                               You'll be redirected to WhatsApp to complete your order
+//                             </p>
+//                           </div>
+//                         </div>
+//                       )}
+//                     </div>
+//                   );
+//                 })}
+//               </div>
+//             )}
+
+//             {/* Map View */}
+//             {viewMode === 'map' && (
+//               <div className="bg-white border border-gray-200 rounded-3xl h-[650px] flex items-center justify-center">
+//                 <div className="text-center">
+//                   <div className="w-20 h-20 bg-elba-surface rounded-3xl flex items-center justify-center mx-auto mb-6">
+//                     <Map className="w-10 h-10 text-gray-300" />
+//                   </div>
+//                   <p className="text-xl font-semibold text-gray-500">Map View</p>
+//                   <p className="text-sm text-gray-400 mt-2">Coming soon</p>
+//                 </div>
+//               </div>
+//             )}
+
+//             {/* Pagination */}
+//             {!loading && totalResults > 20 && (
+//               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 text-sm">
+//                 <p className="text-gray-500">
+//                   Showing {(filters.page - 1) * filters.limit + 1}–
+//                   {Math.min(filters.page * filters.limit, totalResults)} of {totalResults} results
+//                 </p>
+//                 <div className="flex gap-2">
+//                   <button
+//                     onClick={() => updateFilter('page', String(filters.page - 1))}
+//                     disabled={filters.page === 1}
+//                     className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40 font-medium text-gray-600"
+//                   >
+//                     Previous
+//                   </button>
+//                   <button
+//                     onClick={() => updateFilter('page', String(filters.page + 1))}
+//                     disabled={filters.page * filters.limit >= totalResults}
+//                     className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40 font-medium text-gray-600"
+//                   >
+//                     Next
+//                   </button>
+//                 </div>
+//               </div>
+//             )}
+//           </main>
+//         </div>
+//       </div>
+
+//       {/* Mobile Filter Drawer */}
+//       {mobileFilterOpen && (
+//         <div className="fixed inset-0 z-50 lg:hidden">
+//           <div className="absolute inset-0 bg-black/50" onClick={() => setMobileFilterOpen(false)} />
+//           <div className="absolute left-0 top-0 bottom-0 w-[85vw] max-w-sm bg-white shadow-2xl overflow-y-auto">
+//             <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between">
+//               <h3 className="font-bold text-elba-primary text-lg">Filters</h3>
+//               <button onClick={() => setMobileFilterOpen(false)} className="p-2 hover:bg-gray-100 rounded-xl">
+//                 <X className="w-5 h-5 text-gray-500" />
+//               </button>
+//             </div>
+//             <div className="p-5">
+//               <FilterPanel
+//                 filters={filters}
+//                 updateFilter={updateFilter}
+//                 stats={stats}
+//                 onClearAll={clearAllFilters}
+//               />
+//             </div>
+//             <div className="sticky bottom-0 bg-white border-t border-gray-100 px-5 py-4">
+//               <button
+//                 onClick={() => setMobileFilterOpen(false)}
+//                 className="btn-elba-primary w-full py-3.5 text-sm font-semibold rounded-xl"
+//               >
+//                 Apply Filters
+//               </button>
+//             </div>
+//           </div>
+//         </div>
+//       )}
+//     </div>
+//   );
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// // client/components/market/SupplyTable.tsx
+// 'use client';
+
+// import { useState, useEffect } from 'react';
+// import Link from 'next/link';
+// import { useRouter } from 'next/navigation';
+// import {
+//   Search,
+//   X,
+//   Map,
+//   Package,
+//   MapPin,
+//   ArrowRight,
+//   Star,
+//   Shield,
+//   ShieldCheck,
+//   Warehouse,
+//   Tractor,
+//   Store,
+//   TrendingUp,
+//   TrendingDown,
+//   Filter,
+//   LayoutList,
+//   MapIcon,
+//   ChevronDown,
+//   ChevronUp,
+//   MessageCircle,
+//   Calendar,
+//   Droplets,
+//   Award,
+// } from 'lucide-react';
+// import FilterPanel from '@/components/market/FilterPanel';
+// import { useAuth } from '@/context/AuthContext';
+// import MarketStatsBar from '@/components/market/MarketStatsBar';
+
+// interface Commodity {
+//   _id: string;
+//   commodityType?: { _id: string; name: string; emoji: string; slug: string; category: string };
+//   name: string;
+//   grade: string;
+//   quantity: { amount: number; unit: string };
+//   price: { amount: number; currency: string; perUnit: string; negotiable: boolean };
+//   location: { state: string; lga: string; community: string; locationType: string; warehouseId?: any };
+//   harvestDate: string;
+//   moistureContent: number;
+//   images: { url: string; publicId: string }[];
+//   seller: { sellerType: string; name: string; verificationTier: string; rating: number; totalTransactions: number };
+//   status: string;
+//   availableQuantity: number;
+//   displayPrice: string;
+//   percentageRemaining: number;
+//   minimumOrder: number;
+//   qualityCertification: { hasCertification: boolean; certifyingBody?: string };
+//   createdAt: string;
+// }
+
+// interface SupplyTableProps {
+//   commodities: Commodity[];
+//   loading: boolean;
+//   totalResults: number;
+//   stats: any;
+//   filters: any;
+//   updateFilter: (key: string, value: string | boolean) => void;
+//   clearAllFilters: () => void;
+//   viewMode: 'table' | 'map';
+//   setViewMode: (mode: 'table' | 'map') => void;
+// }
+
+// const locationTypeIcon = (type: string) => {
+//   switch (type) {
+//     case 'warehouse': return <Warehouse className="w-3 h-3" />;
+//     case 'farm': return <Tractor className="w-3 h-3" />;
+//     default: return <Store className="w-3 h-3" />;
+//   }
+// };
+
+// const locationTypeLabel: Record<string, string> = {
+//   warehouse: 'Warehouse',
+//   farm: 'Farm Gate',
+//   collection_center: 'Collection Center',
+//   market: 'Market',
+// };
+
+// const WHATSAPP_NUMBER = '2349065219811';
+
+// // Default filters to prevent undefined errors
+// const defaultFilters = {
+//   commodityType: '',
+//   grade: '',
+//   state: '',
+//   locationType: '',
+//   minPrice: '',
+//   maxPrice: '',
+//   minQuantity: '',
+//   maxQuantity: '',
+//   verifiedOnly: false,
+//   harvestDays: '',
+//   sortBy: 'date',
+//   sortOrder: 'desc',
+//   page: 1,
+//   limit: 20,
+//   search: '',
+// };
+
+// export default function SupplyTable({
+//   commodities = [],
+//   loading = false,
+//   totalResults = 0,
+//   stats = { byCommodity: [], byState: [], byLocationType: [] },
+//   filters = defaultFilters,
+//   updateFilter = () => {},
+//   clearAllFilters = () => {},
+//   viewMode = 'table',
+//   setViewMode = () => {},
+// }: SupplyTableProps) {
+//   const router = useRouter();
+//   const { isAuthenticated } = useAuth();
+//   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+//   const [scrolled, setScrolled] = useState(false);
+//   const [expandedId, setExpandedId] = useState<string | null>(null);
+//   const [orderQuantities, setOrderQuantities] = useState<Record<string, number>>({});
+
+//   useEffect(() => {
+//     const handleScroll = () => {
+//       setScrolled(window.scrollY > 80);
+//     };
+//     window.addEventListener('scroll', handleScroll);
+//     return () => window.removeEventListener('scroll', handleScroll);
+//   }, []);
+
+//   // Safe filter check with null guard
+//   const activeFilterCount = filters && typeof filters === 'object'
+//     ? Object.entries(filters).filter(([key, value]) => {
+//         if (['page', 'limit', 'sortBy', 'sortOrder'].includes(key)) return false;
+//         return value !== '' && value !== false;
+//       }).length
+//     : 0;
+
+//   const getProgressColor = (percentage: number) => {
+//     if (percentage > 60) return 'bg-emerald-500';
+//     if (percentage > 30) return 'bg-amber-500';
+//     return 'bg-red-500';
+//   };
+
+//   const toggleExpand = (commodityId: string, minimumOrder: number) => {
+//     if (expandedId === commodityId) {
+//       setExpandedId(null);
+//     } else {
+//       setExpandedId(commodityId);
+//       // Initialize order quantity if not set
+//       if (!orderQuantities[commodityId]) {
+//         setOrderQuantities(prev => ({ ...prev, [commodityId]: minimumOrder }));
+//       }
+//     }
+//   };
+
+//   const updateOrderQuantity = (commodityId: string, delta: number, commodity: Commodity) => {
+//     const current = orderQuantities[commodityId] || commodity.minimumOrder;
+//     const newQuantity = Math.max(commodity.minimumOrder, Math.min(commodity.availableQuantity, current + delta));
+//     setOrderQuantities(prev => ({ ...prev, [commodityId]: newQuantity }));
+//   };
+
+//   const handleWhatsAppOrder = (commodity: Commodity) => {
+//     if (!isAuthenticated) {
+//       router.push('/login');
+//       return;
+//     }
+
+//     const quantity = orderQuantities[commodity._id] || commodity.minimumOrder;
+//     const totalPrice = commodity.price.amount * quantity;
+
+//     const message = encodeURIComponent(
+//       `Hello Elber Market! I'm interested in buying:\n\n` +
+//       `🌾 Product: ${commodity.name}\n` +
+//       `📊 Grade: ${commodity.grade}\n` +
+//       `📦 Quantity: ${quantity} ${commodity.quantity.unit}\n` +
+//       `💰 Price: ₦${commodity.price.amount.toLocaleString()}/${commodity.price.perUnit}\n` +
+//       `💵 Total: ₦${totalPrice.toLocaleString()}\n\n` +
+//       `Please provide more information about this product.`
+//     );
+
+//     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
+//   };
+
+//   const mobileChips = [
+//     { key: 'state', label: filters?.state || 'State', active: !!filters?.state },
+//     { key: 'grade', label: filters?.grade ? `Grade ${filters.grade}` : 'Grade', active: !!filters?.grade },
+//     { key: 'locationType', label: filters?.locationType ? locationTypeLabel[filters.locationType] || filters.locationType : 'Source', active: !!filters?.locationType },
+//   ];
+
+//   return (
+//     <div className="min-h-screen bg-[#f8faf9]">
+//       <MarketStatsBar
+//         totalResults={totalResults || 0}
+//         commodityCount={stats?.byCommodity?.length || 0}
+//         stateCount={stats?.byState?.length || 0}
+//       />
+
+//       {/* Top Bar */}
+//       <div className={`sticky z-40 transition-all duration-300 ${
+//         scrolled
+//           ? 'top-0 bg-white/95 backdrop-blur-xl border-b border-gray-100 shadow-sm'
+//           : 'top-0 bg-elba-primary'
+//       }`}>
+//         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-3">
+//           <div className="flex items-center gap-3">
+//             {/* Mobile Filter Button */}
+//             <button
+//               onClick={() => setMobileFilterOpen(true)}
+//               className={`lg:hidden flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all flex-shrink-0 ${
+//                 scrolled
+//                   ? 'bg-gray-100 text-elba-primary hover:bg-gray-200'
+//                   : 'bg-white/10 border border-white/10 text-white hover:bg-white/15'
+//               }`}
+//             >
+//               <Filter className="w-4 h-4" />
+//               {activeFilterCount > 0 && (
+//                 <span className="bg-elba-secondary text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+//                   {activeFilterCount}
+//                 </span>
+//               )}
+//             </button>
+
+//             {/* Search */}
+//             <div className="relative flex-1 max-w-md">
+//               <Search className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${
+//                 scrolled ? 'text-gray-400' : 'text-white/40'
+//               }`} />
+//               <input
+//                 type="text"
+//                 placeholder="Search commodities..."
+//                 value={filters?.search || ''}
+//                 onChange={(e) => updateFilter?.('search', e.target.value)}
+//                 className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm transition-all focus:outline-none focus:ring-2 focus:ring-elba-secondary/20 ${
+//                   scrolled
+//                     ? 'bg-gray-50 border border-gray-200 text-elba-primary placeholder:text-gray-400 focus:bg-white focus:border-elba-secondary'
+//                     : 'bg-white/10 border border-white/10 text-white placeholder:text-white/30 focus:bg-white/15 focus:border-white/20'
+//                 }`}
+//               />
+//               {filters?.search && (
+//                 <button
+//                   onClick={() => updateFilter?.('search', '')}
+//                   className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors ${
+//                     scrolled ? 'text-gray-400 hover:text-gray-600' : 'text-white/40 hover:text-white'
+//                   }`}
+//                 >
+//                   <X className="w-4 h-4" />
+//                 </button>
+//               )}
+//             </div>
+
+//             {/* Sort + View Toggle */}
+//             <div className="hidden sm:flex items-center gap-2">
+//               <select
+//                 value={filters?.sortBy || 'date'}
+//                 onChange={(e) => updateFilter?.('sortBy', e.target.value)}
+//                 className={`rounded-xl px-3 py-2.5 text-sm transition-all focus:outline-none ${
+//                   scrolled
+//                     ? 'bg-gray-50 border border-gray-200 text-elba-primary'
+//                     : 'bg-white/10 border border-white/10 text-white'
+//                 }`}
+//               >
+//                 <option value="date" className="text-elba-primary">Most Recent</option>
+//                 <option value="price" className="text-elba-primary">Price</option>
+//                 <option value="quantity" className="text-elba-primary">Quantity</option>
+//                 <option value="rating" className="text-elba-primary">Rating</option>
+//               </select>
+
+//               <button
+//                 onClick={() => updateFilter?.('sortOrder', filters?.sortOrder === 'asc' ? 'desc' : 'asc')}
+//                 className={`p-2.5 rounded-xl transition-all ${
+//                   scrolled
+//                     ? 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'
+//                     : 'bg-white/10 border border-white/10 text-white/70 hover:text-white hover:bg-white/15'
+//                 }`}
+//               >
+//                 {filters?.sortOrder === 'asc' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+//               </button>
+
+//               {/* View Toggle */}
+//               <div className={`flex rounded-xl p-0.5 border transition-all ${
+//                 scrolled ? 'bg-gray-100 border-gray-200' : 'bg-white/10 border-white/10'
+//               }`}>
+//                 <button
+//                   onClick={() => setViewMode?.('table')}
+//                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+//                     viewMode === 'table'
+//                       ? scrolled ? 'bg-white text-elba-primary shadow-sm' : 'bg-white text-elba-primary shadow-sm'
+//                       : scrolled ? 'text-gray-500 hover:text-gray-700' : 'text-white/60 hover:text-white'
+//                   }`}
+//                 >
+//                   <LayoutList className="w-3.5 h-3.5" />
+//                   List
+//                 </button>
+//                 <button
+//                   onClick={() => setViewMode?.('map')}
+//                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+//                     viewMode === 'map'
+//                       ? scrolled ? 'bg-white text-elba-primary shadow-sm' : 'bg-white text-elba-primary shadow-sm'
+//                       : scrolled ? 'text-gray-500 hover:text-gray-700' : 'text-white/60 hover:text-white'
+//                   }`}
+//                 >
+//                   <MapIcon className="w-3.5 h-3.5" />
+//                   Map
+//                 </button>
+//               </div>
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Mobile Filter Chips */}
+//       <div className="lg:hidden bg-white border-b border-gray-100 overflow-x-auto">
+//         <div className="flex gap-2 px-4 py-2.5">
+//           {mobileChips.map((chip) => (
+//             <button
+//               key={chip.key}
+//               onClick={() => setMobileFilterOpen(true)}
+//               className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+//                 chip.active
+//                   ? 'bg-elba-primary text-white border-elba-primary shadow-sm'
+//                   : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300'
+//               }`}
+//             >
+//               {chip.label}
+//             </button>
+//           ))}
+//           {filters?.verifiedOnly && (
+//             <button
+//               onClick={() => setMobileFilterOpen(true)}
+//               className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border bg-elba-primary text-white border-elba-primary shadow-sm"
+//             >
+//               Verified ✓
+//             </button>
+//           )}
+//         </div>
+//       </div>
+
+//       {/* Active Filters Bar */}
+//       {activeFilterCount > 0 && (
+//         <div className="hidden lg:flex items-center gap-2 px-4 sm:px-6 lg:px-8 py-2.5 bg-white border-b border-gray-100 flex-wrap animate-fade-in">
+//           <span className="text-xs text-gray-400 font-medium">Filters:</span>
+//           {filters?.commodityType && (
+//             <span className="text-xs bg-elba-surface border border-elba-surface-dark px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-primary">
+//               Commodity
+//               <button onClick={() => updateFilter?.('commodityType', '')} className="hover:text-red-500 transition-colors">
+//                 <X className="w-3 h-3" />
+//               </button>
+//             </span>
+//           )}
+//           {filters?.state && (
+//             <span className="text-xs bg-elba-surface border border-elba-surface-dark px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-primary">
+//               {filters.state}
+//               <button onClick={() => updateFilter?.('state', '')} className="hover:text-red-500 transition-colors">
+//                 <X className="w-3 h-3" />
+//               </button>
+//             </span>
+//           )}
+//           {filters?.grade && (
+//             <span className="text-xs bg-elba-surface border border-elba-surface-dark px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-primary">
+//               Grade {filters.grade}
+//               <button onClick={() => updateFilter?.('grade', '')} className="hover:text-red-500 transition-colors">
+//                 <X className="w-3 h-3" />
+//               </button>
+//             </span>
+//           )}
+//           {filters?.locationType && (
+//             <span className="text-xs bg-elba-surface border border-elba-surface-dark px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-primary capitalize">
+//               {filters.locationType.replace('_', ' ')}
+//               <button onClick={() => updateFilter?.('locationType', '')} className="hover:text-red-500 transition-colors">
+//                 <X className="w-3 h-3" />
+//               </button>
+//             </span>
+//           )}
+//           {filters?.verifiedOnly && (
+//             <span className="text-xs bg-elba-secondary/10 border border-elba-secondary/20 px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-secondary">
+//               Verified only
+//               <button onClick={() => updateFilter?.('verifiedOnly', false)} className="hover:text-red-500 transition-colors">
+//                 <X className="w-3 h-3" />
+//               </button>
+//             </span>
+//           )}
+//           <button
+//             onClick={clearAllFilters}
+//             className="text-xs text-red-500 hover:text-red-600 font-medium ml-2 transition-colors"
+//           >
+//             Clear all
+//           </button>
+//         </div>
+//       )}
+
+//       {/* Main Layout */}
+//       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+//         <div className="flex gap-8">
+//           {/* Desktop Sidebar */}
+//           <aside className="hidden lg:block w-72 flex-shrink-0">
+//             <div className="sticky top-40 max-h-[calc(100vh-12rem)] flex flex-col">
+//               <FilterPanel
+//                 filters={filters}
+//                 updateFilter={updateFilter}
+//                 stats={stats}
+//                 onClearAll={clearAllFilters}
+//                 isSidebar
+//               />
+//             </div>
+//           </aside>
+
+//           {/* Main Content */}
+//           <main className="flex-1 min-w-0">
+//             {/* Loading State */}
+//             {loading && (
+//               <div className="space-y-3">
+//                 {[...Array(6)].map((_, i) => (
+//                   <div key={i} className="bg-white rounded-2xl p-5 border border-gray-100 animate-pulse">
+//                     <div className="flex items-center gap-4">
+//                       <div className="w-12 h-12 rounded-xl bg-gray-100" />
+//                       <div className="flex-1 space-y-2">
+//                         <div className="h-4 bg-gray-100 rounded-lg w-1/3" />
+//                         <div className="h-3 bg-gray-50 rounded-lg w-1/4" />
+//                       </div>
+//                       <div className="space-y-2">
+//                         <div className="h-5 bg-gray-100 rounded-lg w-24" />
+//                         <div className="h-9 bg-gray-100 rounded-xl w-28" />
+//                       </div>
+//                     </div>
+//                   </div>
+//                 ))}
+//               </div>
+//             )}
+
+//             {/* Empty State */}
+//             {!loading && commodities.length === 0 && (
+//               <div className="text-center py-20">
+//                 <div className="w-20 h-20 bg-elba-surface rounded-3xl flex items-center justify-center mx-auto mb-6">
+//                   <Package className="w-10 h-10 text-gray-300" />
+//                 </div>
+//                 <p className="text-xl font-semibold text-gray-500">No commodities found</p>
+//                 <p className="text-sm text-gray-400 mt-2">Try adjusting your filters or search terms</p>
+//               </div>
+//             )}
+
+//             {/* Commodity Cards with Expandable Details */}
+//             {!loading && viewMode === 'table' && commodities.length > 0 && (
+//               <div className="space-y-3">
+//                 {commodities.map((commodity, index) => {
+//                   const isExpanded = expandedId === commodity._id;
+//                   const orderQuantity = orderQuantities[commodity._id] || commodity.minimumOrder;
+//                   const totalPrice = commodity.price.amount * orderQuantity;
+//                   const daysSinceHarvest = commodity.harvestDate
+//                     ? Math.floor((Date.now() - new Date(commodity.harvestDate).getTime()) / (1000 * 60 * 60 * 24))
+//                     : null;
+
+//                   return (
+//                     <div
+//                       key={commodity._id}
+//                       className="bg-white rounded-2xl border border-gray-100 hover:border-gray-200 transition-all duration-300 overflow-hidden animate-fade-in"
+//                       style={{ animationDelay: `${index * 50}ms` }}
+//                     >
+//                       {/* Main Row */}
+//                       <div className="p-4 sm:p-5">
+//                         <div className="flex items-start gap-4">
+//                           {/* Image/Emoji */}
+//                           <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-elba-surface flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
+//                             {commodity.images?.[0]?.url ? (
+//                               <img src={commodity.images[0].url} alt={commodity.name} className="w-full h-full object-cover" />
+//                             ) : (
+//                               <span className="text-3xl">{commodity.commodityType?.emoji || '📦'}</span>
+//                             )}
+//                           </div>
+
+//                           {/* Info */}
+//                           <div className="flex-1 min-w-0">
+//                             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1.5">
+//                               <h3 className="font-bold text-elba-primary text-sm sm:text-base">
+//                                 {commodity.name}
+//                               </h3>
+//                               <div className="flex items-center gap-2 flex-wrap">
+//                                 <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-bold rounded-lg ${
+//                                   commodity.grade === 'A' ? 'bg-emerald-50 text-emerald-700' :
+//                                   commodity.grade === 'B' ? 'bg-amber-50 text-amber-700' :
+//                                   'bg-gray-100 text-gray-600'
+//                                 }`}>
+//                                   Grade {commodity.grade}
+//                                 </span>
+//                                 {commodity.qualityCertification?.hasCertification && (
+//                                   <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-lg font-bold">
+//                                     <ShieldCheck className="w-2.5 h-2.5" /> Certified
+//                                   </span>
+//                                 )}
+//                               </div>
+//                             </div>
+
+//                             <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
+//                               <span className="inline-flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded-md">
+//                                 {locationTypeIcon(commodity.location.locationType)}
+//                                 <span className="capitalize">{locationTypeLabel[commodity.location.locationType]}</span>
+//                               </span>
+//                               <span className="inline-flex items-center gap-1">
+//                                 <MapPin className="w-3 h-3" />
+//                                 {commodity.location.state}{commodity.location.lga ? `, ${commodity.location.lga}` : ''}
+//                               </span>
+//                               {commodity.moistureContent && (
+//                                 <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md">
+//                                   💧 {commodity.moistureContent.toFixed(1)}%
+//                                 </span>
+//                               )}
+//                             </div>
+
+//                             {/* Quantity + Price Row */}
+//                             <div className="flex flex-col sm:flex-row sm:items-end justify-between mt-3 gap-3">
+//                               <div className="flex items-center gap-6">
+//                                 <div>
+//                                   <div className="flex items-baseline gap-1.5">
+//                                     <span className="font-mono font-bold text-sm text-elba-primary">
+//                                       {commodity.availableQuantity.toLocaleString()}
+//                                     </span>
+//                                     <span className="text-xs text-gray-500">{commodity.quantity.unit}</span>
+//                                   </div>
+//                                   <div className="flex items-center gap-2 mt-1.5">
+//                                     <div className="w-20 sm:w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+//                                       <div
+//                                         className={`h-full rounded-full transition-all duration-500 ${getProgressColor(commodity.percentageRemaining)}`}
+//                                         style={{ width: `${commodity.percentageRemaining}%` }}
+//                                       />
+//                                     </div>
+//                                     <span className="text-[10px] text-gray-400">{commodity.percentageRemaining}%</span>
+//                                   </div>
+//                                 </div>
+//                               </div>
+
+//                               <div className="flex items-center gap-3">
+//                                 <div className="text-right">
+//                                   <p className="font-mono font-bold text-elba-primary text-lg sm:text-xl">
+//                                     ₦{commodity.price.amount.toLocaleString()}
+//                                   </p>
+//                                   <p className="text-[10px] text-gray-400">per {commodity.price.perUnit}</p>
+//                                 </div>
+//                                 <button
+//                                   onClick={() => toggleExpand(commodity._id, commodity.minimumOrder)}
+//                                   className="btn-elba-primary text-xs sm:text-sm py-2.5 px-4 flex items-center gap-1.5 shadow-lg shadow-elba-primary/10 hover:shadow-elba-primary/20 transition-all"
+//                                 >
+//                                   {isExpanded ? 'Hide Details' : 'See Details'}
+//                                   {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+//                                 </button>
+//                               </div>
+//                             </div>
+//                           </div>
+//                         </div>
+//                       </div>
+
+//                       {/* Expandable Details Section */}
+//                       {isExpanded && (
+//                         <div className="border-t border-gray-100 bg-elba-surface/30 px-4 sm:px-6 py-5 animate-fade-in">
+//                           {/* Quick Stats */}
+//                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+//                             <div className="bg-white p-3 rounded-xl border border-gray-100">
+//                               <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Available</p>
+//                               <p className="font-mono font-semibold text-elba-primary text-sm">
+//                                 {commodity.availableQuantity.toLocaleString()} {commodity.quantity.unit}
+//                               </p>
+//                             </div>
+//                             <div className="bg-white p-3 rounded-xl border border-gray-100">
+//                               <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Min. Order</p>
+//                               <p className="font-mono font-semibold text-elba-primary text-sm">
+//                                 {commodity.minimumOrder} {commodity.quantity.unit}
+//                               </p>
+//                             </div>
+//                             <div className="bg-white p-3 rounded-xl border border-gray-100">
+//                               <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Seller Rating</p>
+//                               <div className="flex items-center gap-1">
+//                                 <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+//                                 <span className="font-semibold text-elba-primary text-sm">{commodity.seller.rating.toFixed(1)}</span>
+//                               </div>
+//                             </div>
+//                             <div className="bg-white p-3 rounded-xl border border-gray-100">
+//                               <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Seller Trades</p>
+//                               <p className="font-semibold text-elba-primary text-sm">{commodity.seller.totalTransactions}</p>
+//                             </div>
+//                           </div>
+
+//                           {/* Additional Details */}
+//                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+//                             {commodity.harvestDate && (
+//                               <div className="flex items-center gap-2">
+//                                 <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+//                                 <div>
+//                                   <p className="text-xs text-gray-500">Harvest Date</p>
+//                                   <p className="text-sm font-medium text-elba-primary">
+//                                     {new Date(commodity.harvestDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+//                                     {daysSinceHarvest !== null && (
+//                                       <span className="text-xs text-gray-500 ml-1">({daysSinceHarvest} days ago)</span>
+//                                     )}
+//                                   </p>
+//                                 </div>
+//                               </div>
+//                             )}
+
+//                             {commodity.moistureContent && (
+//                               <div className="flex items-center gap-2">
+//                                 <Droplets className="w-4 h-4 text-gray-400 flex-shrink-0" />
+//                                 <div>
+//                                   <p className="text-xs text-gray-500">Moisture Content</p>
+//                                   <p className="text-sm font-medium text-elba-primary">{commodity.moistureContent.toFixed(1)}%</p>
+//                                 </div>
+//                               </div>
+//                             )}
+
+//                             <div className="flex items-center gap-2">
+//                               <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
+//                               <div>
+//                                 <p className="text-xs text-gray-500">Location</p>
+//                                 <p className="text-sm font-medium text-elba-primary">
+//                                   {[commodity.location.community, commodity.location.lga, commodity.location.state].filter(Boolean).join(', ')}
+//                                 </p>
+//                               </div>
+//                             </div>
+
+//                             {commodity.qualityCertification?.hasCertification && (
+//                               <div className="flex items-center gap-2">
+//                                 <Award className="w-4 h-4 text-elba-secondary flex-shrink-0" />
+//                                 <div>
+//                                   <p className="text-xs text-gray-500">Quality Certified</p>
+//                                   <p className="text-sm font-medium text-elba-secondary">
+//                                     {commodity.qualityCertification.certifyingBody || 'Certified'}
+//                                   </p>
+//                                 </div>
+//                               </div>
+//                             )}
+//                           </div>
+
+//                           {/* Order Section */}
+//                           <div className="bg-white rounded-xl border border-gray-100 p-4 sm:p-5">
+//                             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+//                               {/* Quantity Selector */}
+//                               <div className="flex items-center gap-3">
+//                                 <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Quantity:</span>
+//                                 <div className="flex items-center gap-1.5">
+//                                   <button
+//                                     onClick={() => updateOrderQuantity(commodity._id, -1, commodity)}
+//                                     disabled={orderQuantity <= commodity.minimumOrder}
+//                                     className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+//                                   >
+//                                     <span className="text-lg">−</span>
+//                                   </button>
+//                                   <div className="w-20 text-center bg-gray-50 border border-gray-200 rounded-lg py-1.5">
+//                                     <span className="text-sm font-bold text-elba-primary">{orderQuantity}</span>
+//                                     <span className="text-[10px] text-gray-500 ml-0.5">{commodity.quantity.unit}</span>
+//                                   </div>
+//                                   <button
+//                                     onClick={() => updateOrderQuantity(commodity._id, 1, commodity)}
+//                                     disabled={orderQuantity >= commodity.availableQuantity}
+//                                     className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+//                                   >
+//                                     <span className="text-lg">+</span>
+//                                   </button>
+//                                 </div>
+//                               </div>
+
+//                               {/* Total */}
+//                               <div className="flex items-center gap-2">
+//                                 <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total:</span>
+//                                 <span className="text-lg font-bold text-elba-primary">₦{totalPrice.toLocaleString()}</span>
+//                               </div>
+
+//                               {/* Order Button */}
+//                               <button
+//                                 onClick={() => handleWhatsAppOrder(commodity)}
+//                                 className="sm:ml-auto w-full sm:w-auto bg-[#25D366] text-white px-6 py-3 rounded-xl text-sm font-semibold hover:bg-[#1fb855] transition-colors flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
+//                               >
+//                                 <MessageCircle className="w-4 h-4" />
+//                                 Order via WhatsApp
+//                               </button>
+//                             </div>
+//                             <p className="text-[10px] text-gray-400 mt-3 text-center sm:text-right">
+//                               You'll be redirected to WhatsApp to complete your order
+//                             </p>
+//                           </div>
+//                         </div>
+//                       )}
+//                     </div>
+//                   );
+//                 })}
+//               </div>
+//             )}
+
+//             {/* Map View */}
+//             {viewMode === 'map' && (
+//               <div className="bg-white border border-gray-200 rounded-3xl h-[650px] flex items-center justify-center shadow-sm">
+//                 <div className="text-center">
+//                   <div className="w-20 h-20 bg-elba-surface rounded-3xl flex items-center justify-center mx-auto mb-6">
+//                     <Map className="w-10 h-10 text-gray-300" />
+//                   </div>
+//                   <p className="text-xl font-semibold text-gray-500">Map View</p>
+//                   <p className="text-sm text-gray-400 mt-2">Interactive commodity map coming soon</p>
+//                 </div>
+//               </div>
+//             )}
+
+//             {/* Pagination */}
+//             {!loading && totalResults > 20 && (
+//               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 text-sm">
+//                 <p className="text-gray-500">
+//                   Showing {(filters?.page - 1) * filters?.limit + 1}–
+//                   {Math.min(filters?.page * filters?.limit, totalResults)} of {totalResults} results
+//                 </p>
+//                 <div className="flex gap-2">
+//                   <button
+//                     onClick={() => updateFilter?.('page', String(filters?.page - 1))}
+//                     disabled={filters?.page === 1}
+//                     className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed font-medium text-gray-600 transition-all"
+//                   >
+//                     Previous
+//                   </button>
+//                   <button
+//                     onClick={() => updateFilter?.('page', String(filters?.page + 1))}
+//                     disabled={filters?.page * filters?.limit >= totalResults}
+//                     className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed font-medium text-gray-600 transition-all"
+//                   >
+//                     Next
+//                   </button>
+//                 </div>
+//               </div>
+//             )}
+//           </main>
+//         </div>
+//       </div>
+
+//       {/* Mobile Filter Drawer */}
+//       {mobileFilterOpen && (
+//         <div className="fixed inset-0 z-50 lg:hidden">
+//           <div
+//             className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+//             onClick={() => setMobileFilterOpen(false)}
+//           />
+//           <div className="absolute left-0 top-0 bottom-0 w-[85vw] max-w-sm bg-white shadow-2xl animate-slide-right overflow-y-auto">
+//             <div className="sticky top-0 bg-white/95 backdrop-blur-xl border-b border-gray-100 px-5 py-4 flex items-center justify-between z-10">
+//               <h3 className="font-bold text-elba-primary text-lg">Filters</h3>
+//               <button
+//                 onClick={() => setMobileFilterOpen(false)}
+//                 className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+//               >
+//                 <X className="w-5 h-5 text-gray-500" />
+//               </button>
+//             </div>
+//             <div className="p-5">
+//               <FilterPanel
+//                 filters={filters}
+//                 updateFilter={updateFilter}
+//                 stats={stats}
+//                 onClearAll={clearAllFilters}
+//               />
+//             </div>
+//             <div className="sticky bottom-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 px-5 py-4">
+//               <button
+//                 onClick={() => setMobileFilterOpen(false)}
+//                 className="btn-elba-primary w-full py-3.5 text-sm font-semibold rounded-xl shadow-lg shadow-elba-primary/20"
+//               >
+//                 Apply Filters
+//               </button>
+//             </div>
+//           </div>
+//         </div>
+//       )}
+//     </div>
+//   );
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// // client/components/market/SupplyTable.tsx
+// 'use client';
+
+// import { useState, useEffect } from 'react';
+// import Link from 'next/link';
+// import {
+//   Search,
+//   X,
+//   Map,
+//   Package,
+//   MapPin,
+//   ArrowRight,
+//   Star,
+//   Shield,
+//   ShieldCheck,
+//   Warehouse,
+//   Tractor,
+//   Store,
+//   TrendingUp,
+//   TrendingDown,
+//   Filter,
+//   LayoutList,
+//   MapIcon,
+// } from 'lucide-react';
+// import FilterPanel from './FilterPanel';
+// import MarketStatsBar from './MarketStatsBar';
+
+// interface Commodity {
+//   _id: string;
+//   commodityType?: { _id: string; name: string; emoji: string; slug: string; category: string };
+//   name: string;
+//   grade: string;
+//   quantity: { amount: number; unit: string };
+//   price: { amount: number; currency: string; perUnit: string; negotiable: boolean };
+//   location: { state: string; lga: string; community: string; locationType: string; warehouseId?: any };
+//   harvestDate: string;
+//   moistureContent: number;
+//   images: { url: string; publicId: string }[];
+//   seller: { sellerType: string; name: string; verificationTier: string; rating: number; totalTransactions: number };
+//   status: string;
+//   availableQuantity: number;
+//   displayPrice: string;
+//   percentageRemaining: number;
+//   minimumOrder: number;
+//   qualityCertification: { hasCertification: boolean; certifyingBody?: string };
+//   createdAt: string;
+// }
+
+// interface SupplyTableProps {
+//   commodities: Commodity[];
+//   loading: boolean;
+//   totalResults: number;
+//   stats: any;
+//   filters: any;
+//   updateFilter: (key: string, value: string | boolean) => void;
+//   clearAllFilters: () => void;
+//   viewMode: 'table' | 'map';
+//   setViewMode: (mode: 'table' | 'map') => void;
+// }
+
+// const locationTypeIcon = (type: string) => {
+//   switch (type) {
+//     case 'warehouse': return <Warehouse className="w-3 h-3" />;
+//     case 'farm': return <Tractor className="w-3 h-3" />;
+//     default: return <Store className="w-3 h-3" />;
+//   }
+// };
+
+// const locationTypeLabel: Record<string, string> = {
+//   warehouse: 'Warehouse',
+//   farm: 'Farm Gate',
+//   collection_center: 'Collection Center',
+//   market: 'Market',
+// };
+
+// export default function SupplyTable({
+//   commodities,
+//   loading,
+//   totalResults,
+//   stats,
+//   filters,
+//   updateFilter,
+//   clearAllFilters,
+//   viewMode,
+//   setViewMode,
+// }: SupplyTableProps) {
+//   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+//   const [scrolled, setScrolled] = useState(false);
+
+//   useEffect(() => {
+//     const handleScroll = () => {
+//       setScrolled(window.scrollY > 80);
+//     };
+//     window.addEventListener('scroll', handleScroll);
+//     return () => window.removeEventListener('scroll', handleScroll);
+//   }, []);
+
+//   const activeFilterCount = Object.entries(filters).filter(([key, value]) => {
+//     if (['page', 'limit', 'sortBy', 'sortOrder'].includes(key)) return false;
+//     return value !== '' && value !== false;
+//   }).length;
+
+//   const getProgressColor = (percentage: number) => {
+//     if (percentage > 60) return 'bg-emerald-500';
+//     if (percentage > 30) return 'bg-amber-500';
+//     return 'bg-red-500';
+//   };
+
+//   const mobileChips = [
+//     { key: 'state', label: filters.state || 'State', active: !!filters.state },
+//     { key: 'grade', label: filters.grade ? `Grade ${filters.grade}` : 'Grade', active: !!filters.grade },
+//     { key: 'locationType', label: filters.locationType ? locationTypeLabel[filters.locationType] || filters.locationType : 'Source', active: !!filters.locationType },
+//   ];
+
+//   return (
+//     <div className="min-h-screen bg-[#f8faf9]">
+//       <MarketStatsBar
+//         totalResults={totalResults}
+//         commodityCount={stats.byCommodity?.length || 0}
+//         stateCount={stats.byState?.length || 0}
+//       />
+
+//       {/* Top Bar */}
+//       <div className={`sticky z-40 transition-all duration-300 ${
+//         scrolled
+//           ? 'top-0 bg-white/95 backdrop-blur-xl border-b border-gray-100 shadow-sm'
+//           : 'top-0 bg-elba-primary'
+//       }`}>
+//         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-3">
+//           <div className="flex items-center gap-3">
+//             {/* Mobile Filter Button */}
+//             <button
+//               onClick={() => setMobileFilterOpen(true)}
+//               className={`lg:hidden flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all flex-shrink-0 ${
+//                 scrolled
+//                   ? 'bg-gray-100 text-elba-primary hover:bg-gray-200'
+//                   : 'bg-white/10 border border-white/10 text-white hover:bg-white/15'
+//               }`}
+//             >
+//               <Filter className="w-4 h-4" />
+//               {activeFilterCount > 0 && (
+//                 <span className="bg-elba-secondary text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+//                   {activeFilterCount}
+//                 </span>
+//               )}
+//             </button>
+
+//             {/* Search */}
+//             <div className="relative flex-1 max-w-md">
+//               <Search className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${
+//                 scrolled ? 'text-gray-400' : 'text-white/40'
+//               }`} />
+//               <input
+//                 type="text"
+//                 placeholder="Search commodities..."
+//                 value={filters.search}
+//                 onChange={(e) => updateFilter('search', e.target.value)}
+//                 className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm transition-all focus:outline-none focus:ring-2 focus:ring-elba-secondary/20 ${
+//                   scrolled
+//                     ? 'bg-gray-50 border border-gray-200 text-elba-primary placeholder:text-gray-400 focus:bg-white focus:border-elba-secondary'
+//                     : 'bg-white/10 border border-white/10 text-white placeholder:text-white/30 focus:bg-white/15 focus:border-white/20'
+//                 }`}
+//               />
+//               {filters.search && (
+//                 <button
+//                   onClick={() => updateFilter('search', '')}
+//                   className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors ${
+//                     scrolled ? 'text-gray-400 hover:text-gray-600' : 'text-white/40 hover:text-white'
+//                   }`}
+//                 >
+//                   <X className="w-4 h-4" />
+//                 </button>
+//               )}
+//             </div>
+
+//             {/* Sort + View Toggle */}
+//             <div className="hidden sm:flex items-center gap-2">
+//               <select
+//                 value={filters.sortBy}
+//                 onChange={(e) => updateFilter('sortBy', e.target.value)}
+//                 className={`rounded-xl px-3 py-2.5 text-sm transition-all focus:outline-none ${
+//                   scrolled
+//                     ? 'bg-gray-50 border border-gray-200 text-elba-primary'
+//                     : 'bg-white/10 border border-white/10 text-white'
+//                 }`}
+//               >
+//                 <option value="date" className="text-elba-primary">Most Recent</option>
+//                 <option value="price" className="text-elba-primary">Price</option>
+//                 <option value="quantity" className="text-elba-primary">Quantity</option>
+//                 <option value="rating" className="text-elba-primary">Rating</option>
+//               </select>
+
+//               <button
+//                 onClick={() => updateFilter('sortOrder', filters.sortOrder === 'asc' ? 'desc' : 'asc')}
+//                 className={`p-2.5 rounded-xl transition-all ${
+//                   scrolled
+//                     ? 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'
+//                     : 'bg-white/10 border border-white/10 text-white/70 hover:text-white hover:bg-white/15'
+//                 }`}
+//               >
+//                 {filters.sortOrder === 'asc' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+//               </button>
+
+//               {/* View Toggle */}
+//               <div className={`flex rounded-xl p-0.5 border transition-all ${
+//                 scrolled ? 'bg-gray-100 border-gray-200' : 'bg-white/10 border-white/10'
+//               }`}>
+//                 <button
+//                   onClick={() => setViewMode('table')}
+//                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+//                     viewMode === 'table'
+//                       ? scrolled ? 'bg-white text-elba-primary shadow-sm' : 'bg-white text-elba-primary shadow-sm'
+//                       : scrolled ? 'text-gray-500 hover:text-gray-700' : 'text-white/60 hover:text-white'
+//                   }`}
+//                 >
+//                   <LayoutList className="w-3.5 h-3.5" />
+//                   List
+//                 </button>
+//                 <button
+//                   onClick={() => setViewMode('map')}
+//                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+//                     viewMode === 'map'
+//                       ? scrolled ? 'bg-white text-elba-primary shadow-sm' : 'bg-white text-elba-primary shadow-sm'
+//                       : scrolled ? 'text-gray-500 hover:text-gray-700' : 'text-white/60 hover:text-white'
+//                   }`}
+//                 >
+//                   <MapIcon className="w-3.5 h-3.5" />
+//                   Map
+//                 </button>
+//               </div>
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Mobile Filter Chips */}
+//       <div className="lg:hidden bg-white border-b border-gray-100 overflow-x-auto">
+//         <div className="flex gap-2 px-4 py-2.5">
+//           {mobileChips.map((chip) => (
+//             <button
+//               key={chip.key}
+//               onClick={() => setMobileFilterOpen(true)}
+//               className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+//                 chip.active
+//                   ? 'bg-elba-primary text-white border-elba-primary shadow-sm'
+//                   : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300'
+//               }`}
+//             >
+//               {chip.label}
+//             </button>
+//           ))}
+//           {filters.verifiedOnly && (
+//             <button
+//               onClick={() => setMobileFilterOpen(true)}
+//               className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border bg-elba-primary text-white border-elba-primary shadow-sm"
+//             >
+//               Verified ✓
+//             </button>
+//           )}
+//         </div>
+//       </div>
+
+//       {/* Active Filters Bar */}
+//       {activeFilterCount > 0 && (
+//         <div className="hidden lg:flex items-center gap-2 px-4 sm:px-6 lg:px-8 py-2.5 bg-white border-b border-gray-100 flex-wrap animate-fade-in">
+//           <span className="text-xs text-gray-400 font-medium">Filters:</span>
+//           {filters.commodityType && (
+//             <span className="text-xs bg-elba-surface border border-elba-surface-dark px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-primary">
+//               Commodity
+//               <button onClick={() => updateFilter('commodityType', '')} className="hover:text-red-500 transition-colors">
+//                 <X className="w-3 h-3" />
+//               </button>
+//             </span>
+//           )}
+//           {filters.state && (
+//             <span className="text-xs bg-elba-surface border border-elba-surface-dark px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-primary">
+//               {filters.state}
+//               <button onClick={() => updateFilter('state', '')} className="hover:text-red-500 transition-colors">
+//                 <X className="w-3 h-3" />
+//               </button>
+//             </span>
+//           )}
+//           {filters.grade && (
+//             <span className="text-xs bg-elba-surface border border-elba-surface-dark px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-primary">
+//               Grade {filters.grade}
+//               <button onClick={() => updateFilter('grade', '')} className="hover:text-red-500 transition-colors">
+//                 <X className="w-3 h-3" />
+//               </button>
+//             </span>
+//           )}
+//           {filters.locationType && (
+//             <span className="text-xs bg-elba-surface border border-elba-surface-dark px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-primary capitalize">
+//               {filters.locationType.replace('_', ' ')}
+//               <button onClick={() => updateFilter('locationType', '')} className="hover:text-red-500 transition-colors">
+//                 <X className="w-3 h-3" />
+//               </button>
+//             </span>
+//           )}
+//           {filters.verifiedOnly && (
+//             <span className="text-xs bg-elba-secondary/10 border border-elba-secondary/20 px-2.5 py-1 rounded-full flex items-center gap-1.5 font-medium text-elba-secondary">
+//               Verified only
+//               <button onClick={() => updateFilter('verifiedOnly', false)} className="hover:text-red-500 transition-colors">
+//                 <X className="w-3 h-3" />
+//               </button>
+//             </span>
+//           )}
+//           <button
+//             onClick={clearAllFilters}
+//             className="text-xs text-red-500 hover:text-red-600 font-medium ml-2 transition-colors"
+//           >
+//             Clear all
+//           </button>
+//         </div>
+//       )}
+
+//       {/* Main Layout */}
+//       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+//         <div className="flex gap-8">
+//           {/* Desktop Sidebar */}
+//           <aside className="hidden lg:block w-72 flex-shrink-0">
+//             <div className="sticky top-40 max-h-[calc(100vh-12rem)] flex flex-col">
+//               <FilterPanel
+//                 filters={filters}
+//                 updateFilter={updateFilter}
+//                 stats={stats}
+//                 onClearAll={clearAllFilters}
+//                 isSidebar
+//               />
+//             </div>
+//           </aside>
+
+//           {/* Main Content */}
+//           <main className="flex-1 min-w-0">
+//             {/* Loading State */}
+//             {loading && (
+//               <div className="space-y-3">
+//                 {[...Array(6)].map((_, i) => (
+//                   <div key={i} className="bg-white rounded-2xl p-5 border border-gray-100 animate-pulse">
+//                     <div className="flex items-center gap-4">
+//                       <div className="w-12 h-12 rounded-xl bg-gray-100" />
+//                       <div className="flex-1 space-y-2">
+//                         <div className="h-4 bg-gray-100 rounded-lg w-1/3" />
+//                         <div className="h-3 bg-gray-50 rounded-lg w-1/4" />
+//                       </div>
+//                       <div className="space-y-2">
+//                         <div className="h-5 bg-gray-100 rounded-lg w-24" />
+//                         <div className="h-9 bg-gray-100 rounded-xl w-28" />
+//                       </div>
+//                     </div>
+//                   </div>
+//                 ))}
+//               </div>
+//             )}
+
+//             {/* Empty State */}
+//             {!loading && commodities.length === 0 && (
+//               <div className="text-center py-20">
+//                 <div className="w-20 h-20 bg-elba-surface rounded-3xl flex items-center justify-center mx-auto mb-6">
+//                   <Package className="w-10 h-10 text-gray-300" />
+//                 </div>
+//                 <p className="text-xl font-semibold text-gray-500">No commodities found</p>
+//                 <p className="text-sm text-gray-400 mt-2">Try adjusting your filters or search terms</p>
+//               </div>
+//             )}
+
+//             {/* Commodity Rows */}
+//             {!loading && viewMode === 'table' && commodities.length > 0 && (
+//               <div className="space-y-3">
+//                 {commodities.map((commodity, index) => (
+//                   <Link
+//                     key={commodity._id}
+//                     href={`/market/${commodity._id}`}
+//                     className="bg-white rounded-2xl border border-gray-100 hover:border-gray-200 hover:shadow-lg transition-all duration-300 overflow-hidden group animate-fade-in block"
+//                     style={{ animationDelay: `${index * 50}ms` }}
+//                   >
+//                     <div className="p-4 sm:p-5">
+//                       <div className="flex items-start gap-4">
+//                         {/* Image */}
+//                         <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-elba-surface flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
+//                           {commodity.images?.[0]?.url ? (
+//                             <img src={commodity.images[0].url} alt={commodity.name} className="w-full h-full object-cover" />
+//                           ) : (
+//                             <span className="text-3xl">{commodity.commodityType?.emoji || '📦'}</span>
+//                           )}
+//                         </div>
+
+//                         {/* Info */}
+//                         <div className="flex-1 min-w-0">
+//                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1.5">
+//                             <h3 className="font-bold text-elba-primary text-sm sm:text-base">
+//                               {commodity.name}
+//                             </h3>
+//                             <div className="flex items-center gap-2 flex-wrap">
+//                               <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-bold rounded-lg ${
+//                                 commodity.grade === 'A' ? 'bg-emerald-50 text-emerald-700' :
+//                                 commodity.grade === 'B' ? 'bg-amber-50 text-amber-700' :
+//                                 'bg-gray-100 text-gray-600'
+//                               }`}>
+//                                 Grade {commodity.grade}
+//                               </span>
+//                               {commodity.qualityCertification?.hasCertification && (
+//                                 <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-lg font-bold">
+//                                   <ShieldCheck className="w-2.5 h-2.5" /> Certified
+//                                 </span>
+//                               )}
+//                             </div>
+//                           </div>
+
+//                           <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
+//                             <span className="inline-flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded-md">
+//                               {locationTypeIcon(commodity.location.locationType)}
+//                               <span className="capitalize">{locationTypeLabel[commodity.location.locationType]}</span>
+//                             </span>
+//                             <span className="inline-flex items-center gap-1">
+//                               <MapPin className="w-3 h-3" />
+//                               {commodity.location.state}{commodity.location.lga ? `, ${commodity.location.lga}` : ''}
+//                             </span>
+//                             {commodity.moistureContent && (
+//                               <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md">
+//                                 💧 {commodity.moistureContent.toFixed(1)}%
+//                               </span>
+//                             )}
+//                           </div>
+
+//                           {/* Quantity + Seller Row */}
+//                           <div className="flex flex-col sm:flex-row sm:items-end justify-between mt-3 gap-3">
+//                             <div className="flex items-center gap-6">
+//                               <div>
+//                                 <div className="flex items-baseline gap-1.5">
+//                                   <span className="font-mono font-bold text-sm text-elba-primary">
+//                                     {commodity.availableQuantity.toLocaleString()}
+//                                   </span>
+//                                   <span className="text-xs text-gray-500">{commodity.quantity.unit}</span>
+//                                 </div>
+//                                 <div className="flex items-center gap-2 mt-1.5">
+//                                   <div className="w-20 sm:w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+//                                     <div
+//                                       className={`h-full rounded-full transition-all duration-500 ${getProgressColor(commodity.percentageRemaining)}`}
+//                                       style={{ width: `${commodity.percentageRemaining}%` }}
+//                                     />
+//                                   </div>
+//                                   <span className="text-[10px] text-gray-400">{commodity.percentageRemaining}%</span>
+//                                 </div>
+//                               </div>
+//                               <div className="hidden sm:block text-xs text-gray-500">
+//                                 Min: <span className="font-semibold text-elba-primary">{commodity.minimumOrder} {commodity.quantity.unit}</span>
+//                               </div>
+//                             </div>
+
+//                             <div className="flex items-center gap-3">
+//                               <div className="hidden sm:flex items-center gap-1.5">
+//                                 <div className="w-6 h-6 rounded-full bg-elba-surface flex items-center justify-center">
+//                                   <span className="text-[10px] font-bold text-elba-primary">
+//                                     {commodity.seller.name.charAt(0)}
+//                                   </span>
+//                                 </div>
+//                                 <div className="text-xs">
+//                                   <p className="font-medium text-elba-primary leading-tight">{commodity.seller.name}</p>
+//                                   <div className="flex items-center gap-1">
+//                                     {commodity.seller.verificationTier === 'trusted' && (
+//                                       <ShieldCheck className="w-3 h-3 text-elba-tertiary" />
+//                                     )}
+//                                     {commodity.seller.verificationTier === 'verified' && (
+//                                       <Shield className="w-3 h-3 text-elba-secondary" />
+//                                     )}
+//                                     <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+//                                     <span className="text-gray-500">{commodity.seller.rating.toFixed(1)}</span>
+//                                   </div>
+//                                 </div>
+//                               </div>
+//                             </div>
+//                           </div>
+//                         </div>
+
+//                         {/* Price + CTA */}
+//                         <div className="flex flex-col items-end gap-2 flex-shrink-0">
+//                           <div className="text-right">
+//                             <p className="font-mono font-bold text-elba-primary text-lg sm:text-xl">
+//                               ₦{commodity.price.amount.toLocaleString()}
+//                             </p>
+//                             <p className="text-[10px] text-gray-400">per {commodity.price.perUnit}</p>
+//                           </div>
+//                           <span className="btn-elba-primary text-xs sm:text-sm py-2.5 px-5 flex items-center gap-1.5 shadow-lg shadow-elba-primary/10 group-hover:shadow-elba-primary/20 transition-all group-hover:-translate-y-0.5">
+//                             Buy Now <ArrowRight className="w-3.5 h-3.5" />
+//                           </span>
+//                         </div>
+//                       </div>
+//                     </div>
+//                   </Link>
+//                 ))}
+//               </div>
+//             )}
+
+//             {/* Map View */}
+//             {viewMode === 'map' && (
+//               <div className="bg-white border border-gray-200 rounded-3xl h-[650px] flex items-center justify-center shadow-sm">
+//                 <div className="text-center">
+//                   <div className="w-20 h-20 bg-elba-surface rounded-3xl flex items-center justify-center mx-auto mb-6">
+//                     <Map className="w-10 h-10 text-gray-300" />
+//                   </div>
+//                   <p className="text-xl font-semibold text-gray-500">Map View</p>
+//                   <p className="text-sm text-gray-400 mt-2">Interactive commodity map coming soon</p>
+//                 </div>
+//               </div>
+//             )}
+
+//             {/* Pagination */}
+//             {!loading && totalResults > 20 && (
+//               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 text-sm">
+//                 <p className="text-gray-500">
+//                   Showing {(filters.page - 1) * filters.limit + 1}–
+//                   {Math.min(filters.page * filters.limit, totalResults)} of {totalResults} results
+//                 </p>
+//                 <div className="flex gap-2">
+//                   <button
+//                     onClick={() => updateFilter('page', String(filters.page - 1))}
+//                     disabled={filters.page === 1}
+//                     className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed font-medium text-gray-600 transition-all"
+//                   >
+//                     Previous
+//                   </button>
+//                   <button
+//                     onClick={() => updateFilter('page', String(filters.page + 1))}
+//                     disabled={filters.page * filters.limit >= totalResults}
+//                     className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed font-medium text-gray-600 transition-all"
+//                   >
+//                     Next
+//                   </button>
+//                 </div>
+//               </div>
+//             )}
+//           </main>
+//         </div>
+//       </div>
+
+//       {/* Mobile Filter Drawer */}
+//       {mobileFilterOpen && (
+//         <div className="fixed inset-0 z-50 lg:hidden">
+//           <div
+//             className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+//             onClick={() => setMobileFilterOpen(false)}
+//           />
+//           <div className="absolute left-0 top-0 bottom-0 w-[85vw] max-w-sm bg-white shadow-2xl animate-slide-right overflow-y-auto">
+//             <div className="sticky top-0 bg-white/95 backdrop-blur-xl border-b border-gray-100 px-5 py-4 flex items-center justify-between z-10">
+//               <h3 className="font-bold text-elba-primary text-lg">Filters</h3>
+//               <button
+//                 onClick={() => setMobileFilterOpen(false)}
+//                 className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+//               >
+//                 <X className="w-5 h-5 text-gray-500" />
+//               </button>
+//             </div>
+//             <div className="p-5">
+//               <FilterPanel
+//                 filters={filters}
+//                 updateFilter={updateFilter}
+//                 stats={stats}
+//                 onClearAll={clearAllFilters}
+//               />
+//             </div>
+//             <div className="sticky bottom-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 px-5 py-4">
+//               <button
+//                 onClick={() => setMobileFilterOpen(false)}
+//                 className="btn-elba-primary w-full py-3.5 text-sm font-semibold rounded-xl shadow-lg shadow-elba-primary/20"
+//               >
+//                 Apply Filters
+//               </button>
+//             </div>
+//           </div>
+//         </div>
+//       )}
+//     </div>
+//   );
+// }
 
 
 

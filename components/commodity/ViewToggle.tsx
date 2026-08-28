@@ -1,3 +1,4 @@
+// client/components/commodity/ViewToggle.tsx
 'use client';
 
 import { List, Map } from 'lucide-react';
@@ -35,3 +36,9 @@ export default function ViewToggle({ viewMode, onChange }: ViewToggleProps) {
     </div>
   );
 }
+
+
+
+
+
+

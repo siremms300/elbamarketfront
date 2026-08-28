@@ -1,3 +1,4 @@
+// client/components/warehouse/WarehouseSidebar.tsx
 'use client';
 
 import { useState } from 'react';

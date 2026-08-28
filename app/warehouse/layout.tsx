@@ -1,34 +1,37 @@
+// client/app/warehouse/layout.tsx
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import WarehouseSidebar from '@/components/warehouse/WarehouseSidebar';
 import WarehouseHeader from '@/components/warehouse/WarehouseHeader';
 
 export default function WarehouseLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const router = useRouter();
 
-  // Show loading while auth state is being determined
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [loading, user, router]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f8faf9] flex items-center justify-center">
-        <div className="animate-pulse text-gray-400">Loading...</div>
-      </div>
-    );
-  }
-
-  // If not logged in, show message (redirect is handled by the child pages)
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-[#f8faf9] flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500">Please log in to access the warehouse dashboard.</p>
-          <a href="/login" className="text-elba-secondary text-sm mt-2 inline-block">Go to Login</a>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-elba-primary mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading...</p>
         </div>
       </div>
     );
   }
 
-  // Check if user has warehouse access
+  if (!user) {
+    return null; // Will redirect in useEffect
+  }
+
   const hasAccess = ['warehouse_operator', 'admin', 'super_admin'].includes(user.role);
 
   if (!hasAccess) {
@@ -54,6 +57,88 @@ export default function WarehouseLayout({ children }: { children: React.ReactNod
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// // client/app/warehouse/layout.tsx
+// 'use client';
+
+// import { useAuth } from '@/context/AuthContext';
+// import WarehouseSidebar from '@/components/warehouse/WarehouseSidebar';
+// import WarehouseHeader from '@/components/warehouse/WarehouseHeader';
+
+// export default function WarehouseLayout({ children }: { children: React.ReactNode }) {
+//   const { user, loading } = useAuth();
+
+//   // Show loading while auth state is being determined
+//   if (loading) {
+//     return (
+//       <div className="min-h-screen bg-[#f8faf9] flex items-center justify-center">
+//         <div className="animate-pulse text-gray-400">Loading...</div>
+//       </div>
+//     );
+//   }
+
+//   // If not logged in, show message (redirect is handled by the child pages)
+//   if (!user) {
+//     return (
+//       <div className="min-h-screen bg-[#f8faf9] flex items-center justify-center">
+//         <div className="text-center">
+//           <p className="text-gray-500">Please log in to access the warehouse dashboard.</p>
+//           <a href="/login" className="text-elba-secondary text-sm mt-2 inline-block">Go to Login</a>
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   // Check if user has warehouse access
+//   const hasAccess = ['warehouse_operator', 'admin', 'super_admin'].includes(user.role);
+
+//   if (!hasAccess) {
+//     return (
+//       <div className="min-h-screen bg-[#f8faf9] flex items-center justify-center">
+//         <div className="text-center">
+//           <p className="text-gray-500">You don't have access to the warehouse dashboard.</p>
+//           <a href="/market" className="text-elba-secondary text-sm mt-2 inline-block">Go to Market</a>
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   return (
+//     <div className="min-h-screen bg-[#f8faf9]">
+//       <WarehouseSidebar />
+//       <WarehouseHeader />
+//       <main className="pt-16 lg:pl-64 transition-all duration-300">
+//         <div className="p-4 sm:p-6 lg:p-8">
+//           {children}
+//         </div>
+//       </main>
+//     </div>
+//   );
+// }
 
 
 

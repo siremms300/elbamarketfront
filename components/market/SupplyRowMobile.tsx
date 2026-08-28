@@ -1,3 +1,4 @@
+// client/components/market/SupplyRowMobile.tsx
 'use client';
 
 import { Star, Shield, ShieldCheck } from 'lucide-react';

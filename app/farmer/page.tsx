@@ -1,3 +1,4 @@
+// client/app/farmer/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';

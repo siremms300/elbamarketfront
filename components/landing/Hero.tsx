@@ -1,3 +1,4 @@
+// client/components/landing/Hero.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -62,7 +63,7 @@ export default function Hero() {
               isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
             }`}
           >
-            From sourcing produce to warehousing, logistics, and delivery, Elba Market manages the journey so farmers sell more easily and buyers source with confidence.
+            From sourcing produce to warehousing, logistics, and delivery, Elber Market manages the journey so farmers sell more easily and buyers source with confidence.
           </p>
 
           {/* CTA Buttons */}

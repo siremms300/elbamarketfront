@@ -1,3 +1,4 @@
+// client/components/shared/Footer.tsx
 import Link from 'next/link';
 import { Sprout } from 'lucide-react';
 
@@ -12,7 +13,7 @@ export default function Footer() {
               <div className="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center">
                 <Sprout className="w-5 h-5 text-elba-secondary-light" />
               </div>
-              <span className="font-bold text-lg">Elba Market</span>
+              <span className="font-bold text-lg">Elber Market</span>
             </div>
             <p className="text-sm text-gray-400 leading-relaxed">
               Africa&apos;s agricultural operating system. Connecting farmers, warehouses, and buyers across the continent.
@@ -51,7 +52,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-gray-500">&copy; {new Date().getFullYear()} Elba Market. All rights reserved.</p>
+          <p className="text-sm text-gray-500">&copy; {new Date().getFullYear()} Elber Market. All rights reserved.</p>
           <div className="flex items-center gap-6">
             <Link href="#" className="text-sm text-gray-500 hover:text-white transition-colors">Privacy</Link>
             <Link href="#" className="text-sm text-gray-500 hover:text-white transition-colors">Terms</Link>

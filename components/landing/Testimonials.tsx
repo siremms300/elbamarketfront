@@ -1,3 +1,4 @@
+// client/components/landing/Testimonials.tsx
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
@@ -5,13 +6,13 @@ import { Star } from 'lucide-react';
 
 const testimonials = [
   {
-    quote: "Elba Market transformed how I sell my maize. I used to wait weeks for middlemen. Now I get fair prices and my goods move within days.",
+    quote: "Elber Market transformed how I sell my maize. I used to wait weeks for middlemen. Now I get fair prices and my goods move within days.",
     author: "Ibrahim Musa",
     role: "Maize Farmer, Kaduna",
     rating: 5,
   },
   {
-    quote: "As a processor, I need reliable supply. Elba gives me visibility into available stock across multiple warehouses. It's changed my supply chain completely.",
+    quote: "As a processor, I need reliable supply. Elber gives me visibility into available stock across multiple warehouses. It's changed my supply chain completely.",
     author: "Folake Adeyemi",
     role: "Food Processor, Lagos",
     rating: 5,
@@ -52,7 +53,7 @@ export default function Testimonials() {
             <span className="text-elba-tertiary">Thousands</span>
           </h2>
           <p className="mt-4 text-lg text-gray-500">
-            Hear from farmers and buyers already using Elba Market.
+            Hear from farmers and buyers already using Elber Market.
           </p>
         </div>
 

@@ -1,3 +1,4 @@
+// client/components/market/FilterPanel.tsx
 'use client';
 
 import { useState, useEffect } from 'react';

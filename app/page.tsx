@@ -1,3 +1,4 @@
+// client/app/page.tsx
 import Hero from '@/components/landing/Hero'; 
 import StatsBar from '@/components/landing/StatsBar';
 import HowItWorks from '@/components/landing/HowItWorks';

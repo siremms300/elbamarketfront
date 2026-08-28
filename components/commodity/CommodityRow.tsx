@@ -1,3 +1,4 @@
+// client/components/commodity/CommodityRow.tsx
 'use client';
 
 import { ChevronDown, ChevronUp, Star, Warehouse, Tractor, Store, Shield, ShieldCheck, MapPin } from 'lucide-react';

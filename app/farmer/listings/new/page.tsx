@@ -1,3 +1,4 @@
+// client/app/farmer/listings/new/page.tsx
 'use client';
 
 import { useEffect } from 'react';

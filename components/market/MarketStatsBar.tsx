@@ -1,3 +1,4 @@
+// client/components/market/MarketStatsBar.tsx
 import { TrendingUp, Package, MapPin } from 'lucide-react';
 
 interface MarketStatsBarProps {

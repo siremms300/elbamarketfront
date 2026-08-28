@@ -1,3 +1,4 @@
+// client/components/farmer/FarmerHeader.tsx
 'use client';
 
 import { useAuth } from '@/context/AuthContext';

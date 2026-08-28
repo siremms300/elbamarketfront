@@ -1,3 +1,4 @@
+// client/components/admin/AdminHeader.tsx
 'use client';
 
 import { useAuth } from '@/context/AuthContext';

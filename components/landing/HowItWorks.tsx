@@ -1,3 +1,4 @@
+// client/components/landing/HowItWorks.tsx
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
@@ -60,7 +61,7 @@ export default function HowItWorks() {
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-16 lg:mb-20">
           <span className="inline-flex items-center gap-2 text-sm font-semibold text-elba-secondary bg-elba-secondary/10 px-4 py-1.5 rounded-full">
-            How Elba Works
+            How Elber Works
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-elba-primary mt-6 tracking-tight">
             From Farm to Market,{' '}

@@ -1,3 +1,4 @@
+// client/components/admin/StatCard.tsx
 import { LucideIcon } from 'lucide-react';
 
 interface StatCardProps {
