@@ -66,7 +66,7 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
     sku: commodity._id,
     brand: {
       '@type': 'Brand',
-      name: 'ELBER MARKET',
+      name: 'Elber Market',
     },
     offers: {
       '@type': 'Offer',

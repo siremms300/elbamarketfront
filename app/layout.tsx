@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
   title: {
     default: 'Elber Market | Agricultural Commerce & Commodity Trading',
-    template: '%s | ELBER MARKET',
+    template: '%s | Elber Market',
   },
 
   description:
@@ -1993,7 +1993,7 @@ export default function RootLayout({
                 telephone: '+2349065219811',
                 contactType: 'customer service',
                 // change the email to elber market email when you secure the mail
-                email: 'siremms300@gmail.com',
+                email: 'mail@elbermarket.com',
                 areaServed: ['NG', 'Africa'],
                 availableLanguage: ['en'],
               },

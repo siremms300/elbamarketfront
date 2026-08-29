@@ -1,4 +1,4 @@
-# robots.txt for ELBER MARKET
+# robots.txt for Elber Market
 User-agent: *
 Allow: /
 
