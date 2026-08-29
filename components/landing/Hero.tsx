@@ -59,7 +59,7 @@ export default function Hero() {
               isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
             }`}
           >
-            Elba Market sources, verifies, warehouses, and delivers commodities to your doorstep. 
+            Elber Market sources, verifies, warehouses, and delivers commodities to your doorstep. 
             From 1 bag to 100,000 — we handle the volumes so you can focus on your life or business.
           </p>
 

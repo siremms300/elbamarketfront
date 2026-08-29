@@ -14,7 +14,7 @@ export default function CTASection() {
           Ready to Source?
         </h2>
         <p className="mt-4 text-lg lg:text-xl text-white/50 max-w-xl mx-auto leading-relaxed">
-          Join households, processors, manufacturers, and exporters who rely on Elba Market to deliver verified commodities on time, every time.
+          Join households, processors, manufacturers, and exporters who rely on Elber Market to deliver verified commodities on time, every time.
         </p>
 
         {/* Trust mini badges */}
