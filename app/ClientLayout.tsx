@@ -3,6 +3,7 @@
 
 import { usePathname } from 'next/navigation';
 import { AuthProvider } from '@/context/AuthContext';
+import { CartProvider } from '@/context/CartContext';
 import Navbar from '@/components/shared/Navbar';
 import Footer from '@/components/shared/Footer';
 
@@ -23,19 +24,21 @@ export default function ClientLayout({
 
   return (
     <AuthProvider>
-      {isDashboard ? (
-        <>{children}</>
-      ) : (
-        <>
-          <Navbar />
+      <CartProvider>
+        {isDashboard ? (
+          <>{children}</>
+        ) : (
+          <>
+            <Navbar />
 
-          <main className="flex-1">
-            {children}
-          </main>
+            <main className="flex-1">
+              {children}
+            </main>
 
-          <Footer />
-        </>
-      )}
+            <Footer />
+          </>
+        )}
+      </CartProvider>
     </AuthProvider>
   );
 }

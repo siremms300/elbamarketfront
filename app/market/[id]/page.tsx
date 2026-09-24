@@ -1,4 +1,3 @@
-// client/app/market/[id]/page.tsx
 import type { Metadata } from 'next';
 import { API_URL } from '@/lib/api';
 import ProductDetailClient from './ProductDetailClient';
@@ -56,7 +55,6 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
     return <ProductDetailClient commodity={null} />;
   }
 
-  // Generate JSON-LD for product
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -127,6 +125,188 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
     </>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// // client/app/market/[id]/page.tsx
+// import type { Metadata } from 'next';
+// import { API_URL } from '@/lib/api';
+// import ProductDetailClient from './ProductDetailClient';
+
+// async function getCommodity(id: string) {
+//   try {
+//     const res = await fetch(`${API_URL}/commodities/${id}`, {
+//       cache: 'no-store',
+//     });
+//     const data = await res.json();
+//     return data.success ? data.data : null;
+//   } catch (error) {
+//     console.error('Error fetching commodity:', error);
+//     return null;
+//   }
+// }
+
+// export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+//   const commodity = await getCommodity(params.id);
+  
+//   if (!commodity) {
+//     return {
+//       title: 'Commodity Not Found | ELBER MARKET',
+//       description: 'This commodity listing is no longer available.',
+//     };
+//   }
+
+//   return {
+//     title: `${commodity.name} - Grade ${commodity.grade} | Buy ${commodity.name} in Nigeria`,
+//     description: `Buy ${commodity.name} (Grade ${commodity.grade}) at ₦${commodity.price?.amount?.toLocaleString()}/${commodity.price?.perUnit}. Available: ${commodity.availableQuantity} ${commodity.quantity?.unit}. Located in ${commodity.location?.state}, Nigeria.`,
+//     keywords: [
+//       `buy ${commodity.name} Nigeria`,
+//       `${commodity.name} price Nigeria`,
+//       `${commodity.name} Grade ${commodity.grade}`,
+//       `bulk ${commodity.name} Nigeria`,
+//       `${commodity.name} suppliers Nigeria`,
+//     ],
+//     openGraph: {
+//       title: `${commodity.name} - Grade ${commodity.grade} | ELBER MARKET`,
+//       description: `Buy ${commodity.name} (Grade ${commodity.grade}) at ₦${commodity.price?.amount?.toLocaleString()}/${commodity.price?.perUnit}`,
+//       type: 'website',
+//       url: `https://www.elbermarket.com/market/${commodity._id}`,
+//       images: commodity.images?.[0]?.url ? [{ url: commodity.images[0].url }] : undefined,
+//     },
+//     alternates: {
+//       canonical: `https://www.elbermarket.com/market/${commodity._id}`,
+//     },
+//   };
+// }
+
+// export default async function ProductDetailPage({ params }: { params: { id: string } }) {
+//   const commodity = await getCommodity(params.id);
+
+//   if (!commodity) {
+//     return <ProductDetailClient commodity={null} />;
+//   }
+
+//   // Generate JSON-LD for product
+//   const jsonLd = {
+//     '@context': 'https://schema.org',
+//     '@type': 'Product',
+//     name: commodity.name,
+//     description: `${commodity.name} - Grade ${commodity.grade}. Available: ${commodity.availableQuantity} ${commodity.quantity?.unit}. Located in ${commodity.location?.state}, Nigeria.`,
+//     image: commodity.images?.[0]?.url || 'https://www.elbermarket.com/logo.png',
+//     sku: commodity._id,
+//     brand: {
+//       '@type': 'Brand',
+//       name: 'Elber Market',
+//     },
+//     offers: {
+//       '@type': 'Offer',
+//       price: commodity.price?.amount?.toString() || '0',
+//       priceCurrency: 'NGN',
+//       availability: commodity.availableQuantity > 0 
+//         ? 'https://schema.org/InStock' 
+//         : 'https://schema.org/OutOfStock',
+//       priceValidUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+//       seller: {
+//         '@type': 'Organization',
+//         name: commodity.seller?.name || 'ELBER MARKET',
+//         address: {
+//           '@type': 'PostalAddress',
+//           addressRegion: commodity.location?.state || 'Nigeria',
+//           addressCountry: 'NG',
+//         },
+//       },
+//     },
+//     additionalProperty: [
+//       {
+//         '@type': 'PropertyValue',
+//         name: 'Grade',
+//         value: commodity.grade || 'B',
+//       },
+//       {
+//         '@type': 'PropertyValue',
+//         name: 'Available Quantity',
+//         value: `${commodity.availableQuantity} ${commodity.quantity?.unit || 'units'}`,
+//       },
+//       {
+//         '@type': 'PropertyValue',
+//         name: 'Minimum Order',
+//         value: `${commodity.minimumOrder} ${commodity.quantity?.unit || 'units'}`,
+//       },
+//       {
+//         '@type': 'PropertyValue',
+//         name: 'Seller Rating',
+//         value: commodity.seller?.rating?.toString() || '0',
+//       },
+//       {
+//         '@type': 'PropertyValue',
+//         name: 'Verified Seller',
+//         value: commodity.seller?.verificationTier === 'trusted' ? 'Yes' : 'No',
+//       },
+//     ],
+//   };
+
+//   return (
+//     <>
+//       <script
+//         type="application/ld+json"
+//         dangerouslySetInnerHTML={{
+//           __html: JSON.stringify(jsonLd),
+//         }}
+//       />
+//       <ProductDetailClient commodity={commodity} />
+//     </>
+//   );
+// }
 
 
 

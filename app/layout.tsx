@@ -1,6 +1,6 @@
 // client/app/layout.tsx
 import type { Metadata, Viewport } from 'next';
-import ClientLayout from './ClientLayout';
+import ClientLayout from './ClientLayout'; 
 import './globals.css';
 
 const siteUrl = 'https://www.elbermarket.com';

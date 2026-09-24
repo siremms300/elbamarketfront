@@ -49,59 +49,94 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        const storedToken = localStorage.getItem(TOKEN_KEY);
-        const storedUser = localStorage.getItem(USER_KEY);
+    // const initAuth = async () => {
+    //   try {
+    //     const storedToken = localStorage.getItem(TOKEN_KEY);
+    //     const storedUser = localStorage.getItem(USER_KEY);
 
-        if (storedToken) {
-          setToken(storedToken);
+    //     if (storedToken) {
+    //       setToken(storedToken);
           
-          // Try to restore user from cache first (instant restore)
-          if (storedUser) {
-            try {
-              const parsedUser = JSON.parse(storedUser);
-              setUser(parsedUser);
-            } catch (e) {
-              console.error('Failed to parse stored user:', e);
-            }
-          }
+    //       // Try to restore user from cache first (instant restore)
+    //       if (storedUser) {
+    //         try {
+    //           const parsedUser = JSON.parse(storedUser);
+    //           setUser(parsedUser);
+    //         } catch (e) {
+    //           console.error('Failed to parse stored user:', e);
+    //         }
+    //       }
 
-          // Then validate with server (background)
-          try {
-            const res = await authApi.getMe(storedToken);
-            if (res.success && res.data?.user) {
-              setUser(res.data.user);
-              localStorage.setItem(USER_KEY, JSON.stringify(res.data.user));
-            } else {
-              // Token is invalid
-              console.error('Invalid token response:', res);
-              localStorage.removeItem(TOKEN_KEY);
-              localStorage.removeItem(USER_KEY);
-              setToken(null);
-              setUser(null);
-            }
-          } catch (error) {
-            console.error('Auth validation error:', error);
-            // Keep user logged in if we have cached data
-            // Only clear if no cached user
-            if (!storedUser) {
-              localStorage.removeItem(TOKEN_KEY);
-              setToken(null);
-              setUser(null);
-            }
-          }
+    //       // Then validate with server (background)
+    //       try {
+    //         const res = await authApi.getMe(storedToken);
+    //         if (res.success && res.data?.user) {
+    //           setUser(res.data.user);
+    //           localStorage.setItem(USER_KEY, JSON.stringify(res.data.user));
+    //         } else {
+    //           // Token is invalid
+    //           console.error('Invalid token response:', res);
+    //           localStorage.removeItem(TOKEN_KEY);
+    //           localStorage.removeItem(USER_KEY);
+    //           setToken(null);
+    //           setUser(null);
+    //         }
+    //       } catch (error) {
+    //         console.error('Auth validation error:', error);
+    //         // Keep user logged in if we have cached data
+    //         // Only clear if no cached user
+    //         if (!storedUser) {
+    //           localStorage.removeItem(TOKEN_KEY);
+    //           setToken(null);
+    //           setUser(null);
+    //         }
+    //       }
+    //     } else {
+    //       setToken(null);
+    //       setUser(null);
+    //     }
+    //   } catch (error) {
+    //     console.error('Auth init error:', error);
+    //   } finally {
+    //     setLoading(false);
+    //   }
+    // };
+
+    const initAuth = async () => {
+      const storedToken = localStorage.getItem(TOKEN_KEY);
+      const storedUser = localStorage.getItem(USER_KEY);
+
+      if (!storedToken) {
+        setLoading(false);
+        return;
+      }
+
+      setToken(storedToken);
+
+      // Load cached user immediately
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch {}
+      }
+
+      // Then verify with server
+      try {
+        const res = await authApi.getMe(storedToken);
+        if (res && res.success && res.data && res.data.user) {
+          setUser(res.data.user);
+          localStorage.setItem(USER_KEY, JSON.stringify(res.data.user));
         } else {
-          setToken(null);
-          setUser(null);
+          // Keep cached user — token may be expired but session is valid
+          console.warn('getMe returned invalid response, using cached user');
         }
       } catch (error) {
-        console.error('Auth init error:', error);
+        // Network error — use cached user
+        console.warn('getMe failed, using cached user:', error);
       } finally {
         setLoading(false);
       }
     };
-
     initAuth();
   }, []);
 
